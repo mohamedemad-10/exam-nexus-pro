@@ -14,6 +14,7 @@ type Attempt = Database['public']['Tables']['user_exam_attempts']['Row'];
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [exams, setExams] = useState<Exam[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
@@ -29,6 +30,15 @@ const Dashboard = () => {
       }
 
       setUser(session.user);
+
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profileData) setProfile(profileData);
 
       // Check admin status
       const adminStatus = await checkIsAdmin(session.user.id);
@@ -96,48 +106,52 @@ const Dashboard = () => {
     <div className="min-h-screen animated-bg">
       {/* Header */}
       <header className="glass-card border-b border-primary/20 sticky top-0 z-50 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Brain className="w-8 h-8 text-primary pulse-glow" />
-            <h1 className="text-2xl font-display gradient-text">ExamPro</h1>
+        <div className="container mx-auto px-3 md:px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Brain className="w-6 h-6 md:w-8 md:h-8 text-primary pulse-glow" />
+            <h1 className="text-lg md:text-2xl font-display gradient-text">ExamPro</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {isAdmin && (
               <Button
                 onClick={() => navigate('/admin')}
                 variant="outline"
+                size="sm"
                 className="border-secondary/50 hover:bg-secondary/20"
               >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Panel
+                <Shield className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Admin Panel</span>
               </Button>
             )}
             <Button
               onClick={handleLogout}
               variant="outline"
+              size="sm"
               className="border-primary/50 hover:bg-primary/20"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              <LogOut className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
+          className="mb-8 md:mb-12"
         >
-          <h2 className="text-4xl font-display mb-2">
-            Welcome back, <span className="gradient-text">{user?.email?.split('@')[0]}</span>!
+          <h2 className="text-2xl md:text-4xl font-display mb-2">
+            Welcome back, <span className="gradient-text">
+              {profile?.full_name || user?.email?.split('@')[0]}
+            </span>!
           </h2>
-          <p className="text-muted-foreground">Choose an exam to start testing your knowledge</p>
+          <p className="text-sm md:text-base text-muted-foreground">Choose an exam to start testing your knowledge</p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
           {/* Stats Cards */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -211,7 +225,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {exams.map((exam, index) => (
                 <motion.div
                   key={exam.id}

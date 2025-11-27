@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { supabase, checkIsAdmin } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
-  Users, BarChart3, Clock, Shield 
+  Users, BarChart3, Clock, Shield, TrendingUp, Award 
 } from "lucide-react";
 import {
   Dialog,
@@ -34,6 +34,10 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Exam = Database['public']['Tables']['exams']['Row'];
 type Question = Database['public']['Tables']['questions']['Row'];
+type UserAttempt = Database['public']['Tables']['user_exam_attempts']['Row'] & {
+  profiles?: { full_name: string | null; email: string };
+  exams?: { title: string };
+};
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -41,6 +45,7 @@ const Admin = () => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [userAttempts, setUserAttempts] = useState<UserAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExamDialog, setShowExamDialog] = useState(false);
   const [showQuestionDialog, setShowQuestionDialog] = useState(false);
@@ -81,6 +86,7 @@ const Admin = () => {
 
       setUser(session.user);
       await loadExams();
+      await loadUserAttempts();
       setLoading(false);
     };
 
@@ -104,6 +110,39 @@ const Admin = () => {
       .order('order_index', { ascending: true });
 
     if (data) setQuestions(data);
+  };
+
+  const loadUserAttempts = async () => {
+    const { data } = await supabase
+      .from('user_exam_attempts')
+      .select('*')
+      .order('started_at', { ascending: false })
+      .limit(50);
+
+    if (data) {
+      // Fetch profile data for each unique user
+      const uniqueUserIds = [...new Set(data.map(a => a.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', uniqueUserIds);
+
+      // Fetch exam data
+      const uniqueExamIds = [...new Set(data.map(a => a.exam_id))];
+      const { data: examsData } = await supabase
+        .from('exams')
+        .select('id, title')
+        .in('id', uniqueExamIds);
+
+      // Merge the data
+      const enrichedData = data.map(attempt => ({
+        ...attempt,
+        profiles: profilesData?.find(p => p.id === attempt.user_id),
+        exams: examsData?.find(e => e.id === attempt.exam_id),
+      }));
+
+      setUserAttempts(enrichedData as UserAttempt[]);
+    }
   };
 
   const handleCreateExam = async () => {
@@ -239,37 +278,77 @@ const Admin = () => {
     <div className="min-h-screen animated-bg pb-20">
       {/* Header */}
       <header className="glass-card border-b border-primary/20 sticky top-0 z-50 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-3 md:px-4 py-3 md:py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <Button
                 onClick={() => navigate('/dashboard')}
                 variant="ghost"
+                size="sm"
                 className="hover:bg-primary/10"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Dashboard
+                <ArrowLeft className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Dashboard</span>
               </Button>
-              <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-secondary pulse-glow" />
-                <h1 className="text-2xl font-display gradient-text">Admin Panel</h1>
+              <div className="flex items-center gap-2 md:gap-3">
+                <Shield className="w-6 h-6 md:w-8 md:h-8 text-secondary pulse-glow" />
+                <h1 className="text-lg md:text-2xl font-display gradient-text">Admin Panel</h1>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="glass-card border-primary/30">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Exams</CardTitle>
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Exams</CardTitle>
                 <BookOpen className="w-4 h-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-display gradient-text">{exams.length}</div>
+                <div className="text-2xl md:text-3xl font-display gradient-text">{exams.length}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="glass-card border-secondary/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                <Users className="w-4 h-4 text-secondary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl md:text-3xl font-display text-secondary">
+                  {new Set(userAttempts.map(a => a.user_id)).size}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Card className="glass-card border-primary/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Attempts</CardTitle>
+                <BarChart3 className="w-4 h-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl md:text-3xl font-display gradient-text">{userAttempts.length}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <Card className="glass-card border-secondary/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Avg Score</CardTitle>
+                <TrendingUp className="w-4 h-4 text-secondary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl md:text-3xl font-display text-secondary">
+                  {userAttempts.length > 0
+                    ? Math.round(userAttempts.reduce((acc, a) => acc + (a.percentage || 0), 0) / userAttempts.length)
+                    : 0}%
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -559,6 +638,91 @@ const Admin = () => {
             )}
           </div>
         </div>
+
+        {/* User Attempts Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-8 md:mt-12"
+        >
+          <h2 className="text-xl md:text-2xl font-display mb-4 md:mb-6 flex items-center gap-2">
+            <Users className="w-5 h-5 md:w-6 md:h-6 text-secondary" />
+            User Exam Results
+          </h2>
+
+          {userAttempts.length === 0 ? (
+            <Card className="glass-card text-center py-12">
+              <CardContent>
+                <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <p className="text-muted-foreground">No exam attempts yet</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="glass-card">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b border-border/50 bg-muted/20">
+                      <tr>
+                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">User</th>
+                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground hidden md:table-cell">Exam</th>
+                        <th className="text-center p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Score</th>
+                        <th className="text-center p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground hidden sm:table-cell">Correct</th>
+                        <th className="text-right p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground hidden lg:table-cell">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {userAttempts.map((attempt) => (
+                        <tr key={attempt.id} className="hover:bg-primary/5 transition-colors">
+                          <td className="p-3 md:p-4">
+                            <div>
+                              <p className="font-medium text-sm md:text-base">
+                                {attempt.profiles?.full_name || 'Unknown User'}
+                              </p>
+                              <p className="text-xs text-muted-foreground hidden md:block">
+                                {attempt.profiles?.email}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="p-3 md:p-4 text-sm hidden md:table-cell">
+                            {attempt.exams?.title || 'Unknown Exam'}
+                          </td>
+                          <td className="p-3 md:p-4 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className={`text-lg md:text-2xl font-display ${
+                                (attempt.percentage || 0) >= 70
+                                  ? 'text-primary'
+                                  : 'text-destructive'
+                              }`}>
+                                {attempt.percentage?.toFixed(0)}%
+                              </div>
+                              {(attempt.percentage || 0) >= 70 && (
+                                <Award className="w-3 h-3 md:w-4 md:h-4 text-primary" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3 md:p-4 text-center text-sm hidden sm:table-cell text-muted-foreground">
+                            {attempt.correct_answers}/{attempt.total_questions}
+                          </td>
+                          <td className="p-3 md:p-4 text-right text-xs md:text-sm text-muted-foreground hidden lg:table-cell">
+                            {new Date(attempt.started_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
       </div>
 
       {/* Delete Confirmation */}
