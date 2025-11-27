@@ -54,14 +54,14 @@ const Admin = () => {
     passing_score: 70,
   });
   
-  const [questionForm, setQuestionForm] = useState({
+  const [questionForms, setQuestionForms] = useState([{
     question_text: '',
     option_a: '',
     option_b: '',
     option_c: '',
     option_d: '',
     correct_answer: 'A',
-  });
+  }]);
 
   useEffect(() => {
     const checkAuthAndAdmin = async () => {
@@ -131,32 +131,67 @@ const Admin = () => {
     }
   };
 
-  const handleAddQuestion = async () => {
+  const handleAddQuestions = async () => {
     if (!selectedExam) return;
+
+    // Filter out empty questions
+    const validQuestions = questionForms.filter(q => 
+      q.question_text.trim() && q.option_a.trim() && q.option_b.trim() && 
+      q.option_c.trim() && q.option_d.trim()
+    );
+
+    if (validQuestions.length === 0) {
+      toast.error("Please fill in at least one complete question");
+      return;
+    }
+
+    const questionsToInsert = validQuestions.map((q, index) => ({
+      ...q,
+      exam_id: selectedExam.id,
+      order_index: questions.length + index,
+    }));
 
     const { error } = await supabase
       .from('questions')
-      .insert({
-        ...questionForm,
-        exam_id: selectedExam.id,
-        order_index: questions.length,
-      });
+      .insert(questionsToInsert);
 
     if (error) {
-      toast.error("Failed to add question");
+      toast.error("Failed to add questions");
     } else {
-      toast.success("Question added successfully");
+      toast.success(`${validQuestions.length} question(s) added successfully`);
       setShowQuestionDialog(false);
-      setQuestionForm({
+      setQuestionForms([{
         question_text: '',
         option_a: '',
         option_b: '',
         option_c: '',
         option_d: '',
         correct_answer: 'A',
-      });
+      }]);
       await loadQuestions(selectedExam.id);
     }
+  };
+
+  const addQuestionSlot = () => {
+    setQuestionForms([...questionForms, {
+      question_text: '',
+      option_a: '',
+      option_b: '',
+      option_c: '',
+      option_d: '',
+      correct_answer: 'A',
+    }]);
+  };
+
+  const removeQuestionSlot = (index: number) => {
+    if (questionForms.length === 1) return;
+    setQuestionForms(questionForms.filter((_, i) => i !== index));
+  };
+
+  const updateQuestionForm = (index: number, field: string, value: string) => {
+    const updated = [...questionForms];
+    updated[index] = { ...updated[index], [field]: value };
+    setQuestionForms(updated);
   };
 
   const handleDeleteExam = async (examId: string) => {
@@ -366,69 +401,106 @@ const Admin = () => {
                         Add Question
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="glass-card border-primary/30 max-w-2xl">
+                    <DialogContent className="glass-card border-primary/30 max-w-4xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle className="font-display text-2xl">Add Question</DialogTitle>
+                        <DialogTitle className="font-display text-2xl">Add Questions (Bulk Entry)</DialogTitle>
                         <DialogDescription>
-                          Create a new question for {selectedExam.title}
+                          Add multiple questions at once for {selectedExam.title}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Question</Label>
-                          <Textarea
-                            value={questionForm.question_text}
-                            onChange={(e) => setQuestionForm({...questionForm, question_text: e.target.value})}
-                            placeholder="What is the capital of France?"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Option A</Label>
-                            <Input
-                              value={questionForm.option_a}
-                              onChange={(e) => setQuestionForm({...questionForm, option_a: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label>Option B</Label>
-                            <Input
-                              value={questionForm.option_b}
-                              onChange={(e) => setQuestionForm({...questionForm, option_b: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label>Option C</Label>
-                            <Input
-                              value={questionForm.option_c}
-                              onChange={(e) => setQuestionForm({...questionForm, option_c: e.target.value})}
-                            />
-                          </div>
-                          <div>
-                            <Label>Option D</Label>
-                            <Input
-                              value={questionForm.option_d}
-                              onChange={(e) => setQuestionForm({...questionForm, option_d: e.target.value})}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Correct Answer</Label>
-                          <select
-                            className="w-full px-3 py-2 bg-background border border-border rounded-md"
-                            value={questionForm.correct_answer}
-                            onChange={(e) => setQuestionForm({...questionForm, correct_answer: e.target.value})}
+                      <div className="space-y-6">
+                        {questionForms.map((form, index) => (
+                          <Card key={index} className="glass-card border-secondary/30 p-4">
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="font-display text-lg">Question {index + 1}</h3>
+                              {questionForms.length > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeQuestionSlot(index)}
+                                  className="text-destructive hover:bg-destructive/20"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Question Text</Label>
+                                <Textarea
+                                  value={form.question_text}
+                                  onChange={(e) => updateQuestionForm(index, 'question_text', e.target.value)}
+                                  placeholder="Enter your question here..."
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Option A</Label>
+                                  <Input
+                                    value={form.option_a}
+                                    onChange={(e) => updateQuestionForm(index, 'option_a', e.target.value)}
+                                    placeholder="First option"
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Option B</Label>
+                                  <Input
+                                    value={form.option_b}
+                                    onChange={(e) => updateQuestionForm(index, 'option_b', e.target.value)}
+                                    placeholder="Second option"
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Option C</Label>
+                                  <Input
+                                    value={form.option_c}
+                                    onChange={(e) => updateQuestionForm(index, 'option_c', e.target.value)}
+                                    placeholder="Third option"
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Option D</Label>
+                                  <Input
+                                    value={form.option_d}
+                                    onChange={(e) => updateQuestionForm(index, 'option_d', e.target.value)}
+                                    placeholder="Fourth option"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label>Correct Answer</Label>
+                                <select
+                                  className="w-full px-3 py-2 bg-background border border-border rounded-md"
+                                  value={form.correct_answer}
+                                  onChange={(e) => updateQuestionForm(index, 'correct_answer', e.target.value)}
+                                >
+                                  <option value="A">A</option>
+                                  <option value="B">B</option>
+                                  <option value="C">C</option>
+                                  <option value="D">D</option>
+                                </select>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                        
+                        <div className="flex gap-3">
+                          <Button 
+                            onClick={addQuestionSlot} 
+                            variant="outline"
+                            className="flex-1"
                           >
-                            <option value="A">A</option>
-                            <option value="B">B</option>
-                            <option value="C">C</option>
-                            <option value="D">D</option>
-                          </select>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Another Question
+                          </Button>
+                          <Button 
+                            onClick={handleAddQuestions} 
+                            className="flex-1 btn-glow bg-secondary hover:bg-secondary/90"
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            Save All Questions ({questionForms.length})
+                          </Button>
                         </div>
-                        <Button onClick={handleAddQuestion} className="w-full btn-glow bg-secondary hover:bg-secondary/90">
-                          <Save className="w-4 h-4 mr-2" />
-                          Add Question
-                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
