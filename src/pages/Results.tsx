@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
-import { Brain, Trophy, XCircle, CheckCircle, ArrowLeft, RotateCcw } from "lucide-react";
+import { Brain, Trophy, XCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import confetti from "canvas-confetti";
 import type { Database } from "@/integrations/supabase/types";
 
 type Attempt = Database['public']['Tables']['user_exam_attempts']['Row'];
@@ -70,6 +71,50 @@ const Results = () => {
 
     loadResults();
   }, [attemptId, navigate]);
+
+  // Trigger confetti for good scores
+  useEffect(() => {
+    if (!loading && attempt && exam) {
+      const percentage = attempt.percentage || 0;
+      const passed = percentage >= (exam.passing_score || 70);
+      
+      if (passed && percentage >= 80) {
+        // Excellent score - big celebration
+        const duration = 3000;
+        const end = Date.now() + duration;
+
+        const frame = () => {
+          confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#6366f1', '#8b5cf6', '#ec4899']
+          });
+          confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#6366f1', '#8b5cf6', '#ec4899']
+          });
+
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        };
+        frame();
+      } else if (passed) {
+        // Just passed - simple confetti
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#6366f1', '#8b5cf6', '#ec4899']
+        });
+      }
+    }
+  }, [loading, attempt, exam]);
 
   if (loading) {
     return (
@@ -164,20 +209,13 @@ const Results = () => {
                 </div>
               </div>
 
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center">
                 <Button
                   onClick={() => navigate('/dashboard')}
                   variant="outline"
                   className="border-primary/30"
                 >
                   Dashboard
-                </Button>
-                <Button
-                  onClick={() => navigate(`/exam/${exam?.id}`)}
-                  className="btn-glow bg-primary hover:bg-primary/90"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Try Again
                 </Button>
               </div>
             </CardContent>

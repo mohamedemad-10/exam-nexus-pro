@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { supabase, checkIsAdmin } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
-  Users, BarChart3, Clock, Shield, TrendingUp, Award 
+  Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw 
 } from "lucide-react";
 import {
   Dialog,
@@ -50,6 +50,7 @@ const Admin = () => {
   const [showExamDialog, setShowExamDialog] = useState(false);
   const [showQuestionDialog, setShowQuestionDialog] = useState(false);
   const [deleteExamId, setDeleteExamId] = useState<string | null>(null);
+  const [editingExam, setEditingExam] = useState<Exam | null>(null);
   
   // Form states
   const [examForm, setExamForm] = useState({
@@ -148,26 +149,61 @@ const Admin = () => {
   const handleCreateExam = async () => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('exams')
-      .insert({
-        ...examForm,
-        created_by: user.id,
-      });
+    if (editingExam) {
+      // Update existing exam
+      const { error } = await supabase
+        .from('exams')
+        .update(examForm)
+        .eq('id', editingExam.id);
 
-    if (error) {
-      toast.error("Failed to create exam");
+      if (error) {
+        toast.error("Failed to update exam");
+      } else {
+        toast.success("Exam updated successfully");
+        setShowExamDialog(false);
+        setExamForm({
+          title: '',
+          description: '',
+          duration_minutes: 60,
+          passing_score: 70,
+        });
+        setEditingExam(null);
+        await loadExams();
+      }
     } else {
-      toast.success("Exam created successfully");
-      setShowExamDialog(false);
-      setExamForm({
-        title: '',
-        description: '',
-        duration_minutes: 60,
-        passing_score: 70,
-      });
-      await loadExams();
+      // Create new exam
+      const { error } = await supabase
+        .from('exams')
+        .insert({
+          ...examForm,
+          created_by: user.id,
+        });
+
+      if (error) {
+        toast.error("Failed to create exam");
+      } else {
+        toast.success("Exam created successfully");
+        setShowExamDialog(false);
+        setExamForm({
+          title: '',
+          description: '',
+          duration_minutes: 60,
+          passing_score: 70,
+        });
+        await loadExams();
+      }
     }
+  };
+
+  const handleEditExam = (exam: Exam) => {
+    setEditingExam(exam);
+    setExamForm({
+      title: exam.title,
+      description: exam.description || '',
+      duration_minutes: exam.duration_minutes,
+      passing_score: exam.passing_score,
+    });
+    setShowExamDialog(true);
   };
 
   const handleAddQuestions = async () => {
@@ -250,6 +286,20 @@ const Admin = () => {
       }
     }
     setDeleteExamId(null);
+  };
+
+  const handleAllowRetake = async (attemptId: string) => {
+    const { error } = await supabase
+      .from('user_exam_attempts')
+      .delete()
+      .eq('id', attemptId);
+
+    if (error) {
+      toast.error("Failed to allow retake");
+    } else {
+      toast.success("User can now retake the exam!");
+      await loadUserAttempts();
+    }
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
@@ -359,18 +409,26 @@ const Admin = () => {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-display">Exams</h2>
-              <Dialog open={showExamDialog} onOpenChange={setShowExamDialog}>
-                <DialogTrigger asChild>
-                  <Button className="btn-glow bg-primary hover:bg-primary/90">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Exam
-                  </Button>
-                </DialogTrigger>
+          <Dialog open={showExamDialog} onOpenChange={(open) => {
+            setShowExamDialog(open);
+            if (!open) {
+              setEditingExam(null);
+              setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70 });
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button className="btn-glow bg-primary hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Exam
+              </Button>
+            </DialogTrigger>
                 <DialogContent className="glass-card border-primary/30">
                   <DialogHeader>
-                    <DialogTitle className="font-display text-2xl">Create New Exam</DialogTitle>
+                    <DialogTitle className="font-display text-2xl">
+                      {editingExam ? 'Edit Exam' : 'Create New Exam'}
+                    </DialogTitle>
                     <DialogDescription>
-                      Add a new exam to your platform
+                      {editingExam ? 'Update exam details' : 'Add a new exam to your platform'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -410,7 +468,7 @@ const Admin = () => {
                     </div>
                     <Button onClick={handleCreateExam} className="w-full btn-glow bg-primary hover:bg-primary/90">
                       <Save className="w-4 h-4 mr-2" />
-                      Create Exam
+                      {editingExam ? 'Update Exam' : 'Create Exam'}
                     </Button>
                   </div>
                 </DialogContent>
@@ -437,17 +495,24 @@ const Admin = () => {
                         <CardTitle className="font-display">{exam.title}</CardTitle>
                         <CardDescription className="line-clamp-2">{exam.description}</CardDescription>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteExamId(exam.id);
-                        }}
-                        className="text-destructive hover:bg-destructive/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditExam(exam)}
+                          className="text-primary hover:bg-primary/20"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteExamId(exam.id)}
+                          className="text-destructive hover:bg-destructive/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -670,6 +735,7 @@ const Admin = () => {
                         <th className="text-center p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Score</th>
                         <th className="text-center p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground hidden sm:table-cell">Correct</th>
                         <th className="text-right p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground hidden lg:table-cell">Date</th>
+                        <th className="text-right p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
@@ -713,6 +779,17 @@ const Admin = () => {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
+                          </td>
+                          <td className="p-3 md:p-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleAllowRetake(attempt.id)}
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                            >
+                              <RotateCcw className="w-4 h-4 md:mr-1" />
+                              <span className="hidden md:inline">Allow Retake</span>
+                            </Button>
                           </td>
                         </tr>
                       ))}
