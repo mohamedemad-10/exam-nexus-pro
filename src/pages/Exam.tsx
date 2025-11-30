@@ -43,6 +43,20 @@ const Exam = () => {
         return;
       }
 
+      // Check if user has already completed this exam
+      const { data: existingAttempts } = await supabase
+        .from('user_exam_attempts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('exam_id', examId)
+        .not('completed_at', 'is', null);
+
+      if (existingAttempts && existingAttempts.length > 0) {
+        toast.error("You have already completed this exam. Contact admin for retake permission.");
+        navigate('/dashboard');
+        return;
+      }
+
       // Fetch exam
       const { data: examData } = await supabase
         .from('exams')
