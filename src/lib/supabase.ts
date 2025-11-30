@@ -1,6 +1,18 @@
-import { supabase } from "@/integrations/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-export { supabase };
+// Direct Supabase client for the frontend.
+// We avoid relying on Vite env here to prevent runtime issues when envs are not injected.
+const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoZHdtZGVicnFlemN5am5yYm5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNTk0OTcsImV4cCI6MjA3OTczNTQ5N30.-WlCNqOUtKSi47Na7avIO2kXMpmYpA2zWi7tvyn_pQ8";
+
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
 // Auth helpers
 export const signUp = async (email: string, password: string, fullName: string) => {
