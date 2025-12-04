@@ -197,28 +197,26 @@ const Exam = () => {
     <div className="min-h-screen animated-bg pb-20">
       {/* Header */}
       <header className="glass-card border-b border-primary/20 sticky top-0 z-50 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-display">{exam?.title}</h1>
-              <p className="text-sm text-muted-foreground">
-                Question {currentQuestionIndex + 1} of {questions.length}
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base sm:text-xl font-display truncate">{exam?.title}</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Q {currentQuestionIndex + 1}/{questions.length}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                timeLeft < 60 ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
-              }`}>
-                <Clock className="w-5 h-5" />
-                <span className="font-display text-lg font-bold">{formatTime(timeLeft)}</span>
-              </div>
+            <div className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg shrink-0 ${
+              timeLeft < 60 ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
+            }`}>
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="font-display text-sm sm:text-lg font-bold">{formatTime(timeLeft)}</span>
             </div>
           </div>
-          <Progress value={progress} className="mt-4 h-2" />
+          <Progress value={progress} className="mt-3 sm:mt-4 h-1.5 sm:h-2" />
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestionIndex}
@@ -228,12 +226,12 @@ const Exam = () => {
             transition={{ duration: 0.3 }}
           >
             <Card className="glass-card border-primary/30">
-              <CardHeader>
-                <CardTitle className="text-2xl font-display">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-2xl font-display leading-relaxed">
                   {currentQuestion?.question_text}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
                 {['A', 'B', 'C', 'D'].map((option) => {
                   const optionKey = `option_${option.toLowerCase()}` as keyof Question;
                   const optionText = currentQuestion?.[optionKey] as string;
@@ -242,20 +240,20 @@ const Exam = () => {
                   return (
                     <motion.div
                       key={option}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                     >
                       <Button
                         variant={isSelected ? "default" : "outline"}
-                        className={`w-full justify-start text-left h-auto py-4 px-6 ${
+                        className={`w-full justify-start text-left h-auto py-3 sm:py-4 px-4 sm:px-6 ${
                           isSelected 
                             ? 'btn-glow bg-primary hover:bg-primary/90 border-primary' 
                             : 'border-primary/30 hover:border-primary/50'
                         }`}
                         onClick={() => handleAnswerSelect(option)}
                       >
-                        <span className="font-display text-lg mr-4">{option}.</span>
-                        <span>{optionText}</span>
+                        <span className="font-display text-base sm:text-lg mr-3 sm:mr-4">{option}.</span>
+                        <span className="text-sm sm:text-base">{optionText}</span>
                       </Button>
                     </motion.div>
                   );
@@ -264,33 +262,37 @@ const Exam = () => {
             </Card>
 
             {/* Navigation */}
-            <div className="flex justify-between mt-8">
+            <div className="flex justify-between mt-4 sm:mt-8 gap-3">
               <Button
                 onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                 disabled={currentQuestionIndex === 0}
                 variant="outline"
-                className="border-primary/30"
+                size="sm"
+                className="border-primary/30 px-3 sm:px-4"
               >
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Previous
+                <ChevronLeft className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Previous</span>
               </Button>
 
               {currentQuestionIndex === questions.length - 1 ? (
                 <Button
                   onClick={() => setShowSubmitDialog(true)}
-                  className="btn-glow bg-secondary hover:bg-secondary/90"
+                  className="btn-glow bg-secondary hover:bg-secondary/90 px-4 sm:px-6"
+                  size="sm"
                   disabled={submitting}
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Submit Exam
+                  <Send className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden xs:inline">Submit</span>
+                  <span className="xs:hidden">Submit</span>
                 </Button>
               ) : (
                 <Button
                   onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                  className="btn-glow bg-primary hover:bg-primary/90"
+                  className="btn-glow bg-primary hover:bg-primary/90 px-3 sm:px-4"
+                  size="sm"
                 >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4 sm:ml-2" />
                 </Button>
               )}
             </div>

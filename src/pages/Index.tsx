@@ -65,22 +65,24 @@ const Index = () => {
     <div className="min-h-screen animated-bg">
       {/* Navigation */}
       <nav className="glass-card border-b border-primary/20 sticky top-0 z-50 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Brain className="w-8 h-8 text-primary pulse-glow" />
-            <h1 className="text-2xl font-display gradient-text">ExamPro</h1>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-primary pulse-glow" />
+            <h1 className="text-xl sm:text-2xl font-display gradient-text">ExamPro</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button 
               onClick={() => navigate('/auth')}
               variant="ghost"
-              className="hover:bg-primary/10"
+              size="sm"
+              className="hover:bg-primary/10 text-xs sm:text-sm"
             >
               Sign In
             </Button>
             <Button 
               onClick={() => navigate('/auth')}
-              className="btn-glow bg-primary hover:bg-primary/90"
+              size="sm"
+              className="btn-glow bg-primary hover:bg-primary/90 text-xs sm:text-sm"
             >
               Get Started
             </Button>
@@ -89,44 +91,42 @@ const Index = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 lg:py-32">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <section className="container mx-auto px-3 sm:px-4 py-12 sm:py-20 lg:py-32">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-5xl lg:text-7xl font-display mb-6 leading-tight">
+            <h2 className="text-3xl sm:text-5xl lg:text-7xl font-display mb-4 sm:mb-6 leading-tight">
               The Future of{" "}
               <span className="gradient-text">Online Exams</span>
             </h2>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-base sm:text-xl text-muted-foreground mb-6 sm:mb-8">
               Secure, intelligent, and lightning-fast examination platform designed for the modern era.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button 
-                size="lg"
                 onClick={() => navigate('/auth')}
-                className="btn-glow bg-primary hover:bg-primary/90 text-lg px-8"
+                className="btn-glow bg-primary hover:bg-primary/90 text-sm sm:text-lg px-6 sm:px-8 py-5 sm:py-6"
               >
                 Start Exam
               </Button>
               <Button 
-                size="lg"
                 variant="outline"
                 onClick={() => navigate('/auth')}
-                className="border-secondary/50 hover:bg-secondary/20 text-lg px-8"
+                className="border-secondary/50 hover:bg-secondary/20 text-sm sm:text-lg px-6 sm:px-8 py-5 sm:py-6"
               >
                 Admin Login
               </Button>
             </div>
-            <div className="flex items-center gap-6 mt-8 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-6 sm:mt-8 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-primary" />
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 <span>No Setup Required</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-primary" />
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 <span>Instant Results</span>
               </div>
             </div>
@@ -174,18 +174,18 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-20">
+      <section className="container mx-auto px-3 sm:px-4 py-12 sm:py-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-8 sm:mb-16"
         >
-          <h3 className="text-4xl font-display mb-4">Powerful Features</h3>
-          <p className="text-xl text-muted-foreground">Everything you need for modern assessments</p>
+          <h3 className="text-2xl sm:text-4xl font-display mb-2 sm:mb-4">Powerful Features</h3>
+          <p className="text-sm sm:text-xl text-muted-foreground">Everything you need for modern assessments</p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {features.map((feature, index) => (
             <motion.div
               key={index}
@@ -207,18 +207,18 @@ const Index = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="container mx-auto px-4 py-20">
+      <section className="container mx-auto px-3 sm:px-4 py-12 sm:py-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-8 sm:mb-16"
         >
-          <h3 className="text-4xl font-display mb-4">Loved by Thousands</h3>
-          <p className="text-xl text-muted-foreground">See what our users have to say</p>
+          <h3 className="text-2xl sm:text-4xl font-display mb-2 sm:mb-4">Loved by Thousands</h3>
+          <p className="text-sm sm:text-xl text-muted-foreground">See what our users have to say</p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={index}
@@ -247,21 +247,20 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20">
+      <section className="container mx-auto px-3 sm:px-4 py-12 sm:py-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="glass-card border-primary/30 p-12 text-center"
+          className="glass-card border-primary/30 p-6 sm:p-12 text-center"
         >
-          <h3 className="text-4xl font-display mb-4">Ready to Get Started?</h3>
-          <p className="text-xl text-muted-foreground mb-8">
+          <h3 className="text-2xl sm:text-4xl font-display mb-2 sm:mb-4">Ready to Get Started?</h3>
+          <p className="text-sm sm:text-xl text-muted-foreground mb-6 sm:mb-8">
             Join thousands of users taking exams on ExamPro today
           </p>
           <Button 
-            size="lg"
             onClick={() => navigate('/auth')}
-            className="btn-glow bg-primary hover:bg-primary/90 text-lg px-12"
+            className="btn-glow bg-primary hover:bg-primary/90 text-sm sm:text-lg px-8 sm:px-12 py-5 sm:py-6"
           >
             Start Your First Exam
           </Button>
@@ -269,14 +268,14 @@ const Index = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-primary/20 mt-20">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-              <Brain className="w-6 h-6 text-primary" />
-              <span className="font-display">ExamPro</span>
+      <footer className="border-t border-primary/20 mt-12 sm:mt-20">
+        <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              <span className="font-display text-sm sm:text-base">ExamPro</span>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               © 2024 ExamPro. All rights reserved.
             </p>
           </div>

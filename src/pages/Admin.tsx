@@ -445,11 +445,11 @@ const Admin = () => {
           </motion.div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Exams List */}
           <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-display">Exams</h2>
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-display">Exams</h2>
           <Dialog open={showExamDialog} onOpenChange={(open) => {
             setShowExamDialog(open);
             if (!open) {
@@ -577,8 +577,8 @@ const Admin = () => {
           <div>
             {selectedExam ? (
               <>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-display">Questions</h2>
+                <div className="flex flex-wrap justify-between items-center gap-3 mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-display">Questions</h2>
                   <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
                     <DialogTrigger asChild>
                       <Button className="btn-glow bg-secondary hover:bg-secondary/90">
@@ -586,18 +586,18 @@ const Admin = () => {
                         Add Question
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="glass-card border-primary/30 max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogContent className="glass-card border-primary/30 max-w-4xl max-h-[80vh] overflow-y-auto mx-2 sm:mx-auto">
                       <DialogHeader>
-                        <DialogTitle className="font-display text-2xl">Add Questions (Bulk Entry)</DialogTitle>
-                        <DialogDescription>
-                          Add multiple questions at once for {selectedExam.title}
+                        <DialogTitle className="font-display text-xl sm:text-2xl">Add Questions</DialogTitle>
+                        <DialogDescription className="text-sm">
+                          Add questions for {selectedExam.title}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-6">
+                      <div className="space-y-4 sm:space-y-6">
                         {questionForms.map((form, index) => (
-                          <Card key={index} className="glass-card border-secondary/30 p-4">
-                            <div className="flex justify-between items-center mb-4">
-                              <h3 className="font-display text-lg">Question {index + 1}</h3>
+                          <Card key={index} className="glass-card border-secondary/30 p-3 sm:p-4">
+                            <div className="flex justify-between items-center mb-3 sm:mb-4">
+                              <h3 className="font-display text-base sm:text-lg">Question {index + 1}</h3>
                               {questionForms.length > 1 && (
                                 <Button
                                   variant="ghost"
@@ -609,16 +609,17 @@ const Admin = () => {
                                 </Button>
                               )}
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-3 sm:space-y-4">
                               <div>
-                                <Label>Question Text</Label>
+                                <Label className="text-sm">Question Text</Label>
                                 <Textarea
                                   value={form.question_text}
                                   onChange={(e) => updateQuestionForm(index, 'question_text', e.target.value)}
                                   placeholder="Enter your question here..."
+                                  className="text-sm"
                                 />
                               </div>
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 <div>
                                   <Label>Option A</Label>
                                   <Input
@@ -875,12 +876,12 @@ const Admin = () => {
 
       {/* View User Answers Dialog */}
       <Dialog open={showAnswersDialog} onOpenChange={setShowAnswersDialog}>
-        <DialogContent className="glass-card border-primary/30 max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="glass-card border-primary/30 max-w-3xl max-h-[85vh] overflow-y-auto mx-2 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl md:text-2xl">
+            <DialogTitle className="font-display text-lg sm:text-xl md:text-2xl">
               {selectedAttempt?.profiles?.full_name || 'User'}'s Answers
             </DialogTitle>
-            <DialogDescription className="text-sm">
+            <DialogDescription className="text-xs sm:text-sm">
               {selectedAttempt?.exams?.title} - Score: {selectedAttempt?.percentage?.toFixed(0)}%
             </DialogDescription>
           </DialogHeader>
@@ -890,27 +891,27 @@ const Admin = () => {
               <Brain className="w-8 h-8 text-primary animate-pulse" />
             </div>
           ) : (
-            <div className="space-y-4 mt-4">
+            <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
               {userAnswers.map((answer, index) => {
                 const question = answer.questions;
                 if (!question) return null;
                 
                 return (
                   <Card key={answer.id} className={`glass-card ${answer.is_correct ? 'border-primary/30' : 'border-destructive/30'}`}>
-                    <CardHeader className="pb-2">
+                    <CardHeader className="pb-2 p-3 sm:p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-sm md:text-base font-medium flex-1">
-                          <span className="text-muted-foreground mr-2">Q{index + 1}.</span>
+                        <CardTitle className="text-xs sm:text-sm md:text-base font-medium flex-1 leading-relaxed">
+                          <span className="text-muted-foreground mr-1 sm:mr-2">Q{index + 1}.</span>
                           {question.question_text}
                         </CardTitle>
                         {answer.is_correct ? (
-                          <CheckCircle className="w-5 h-5 text-primary shrink-0" />
+                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
                         ) : (
-                          <XCircle className="w-5 h-5 text-destructive shrink-0" />
+                          <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive shrink-0" />
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-1 text-xs md:text-sm">
+                    <CardContent className="space-y-1 text-[11px] sm:text-xs md:text-sm p-3 sm:p-4 pt-0">
                       {['A', 'B', 'C', 'D'].map((opt) => {
                         const optKey = `option_${opt.toLowerCase()}` as keyof Question;
                         const isCorrect = question.correct_answer === opt;
@@ -921,11 +922,11 @@ const Admin = () => {
                         else if (isSelected && !isCorrect) bgClass = 'bg-destructive/20 text-destructive';
                         
                         return (
-                          <div key={opt} className={`p-2 rounded flex items-center gap-2 ${bgClass}`}>
+                          <div key={opt} className={`p-1.5 sm:p-2 rounded flex flex-wrap items-start gap-1 sm:gap-2 ${bgClass}`}>
                             <span className="font-medium">{opt}.</span>
-                            <span className="flex-1">{question[optKey] as string}</span>
-                            {isSelected && <span className="text-xs">← User's answer</span>}
-                            {isCorrect && <span className="text-xs">✓ Correct</span>}
+                            <span className="flex-1 min-w-0">{question[optKey] as string}</span>
+                            {isSelected && <span className="text-[10px] sm:text-xs whitespace-nowrap">← User</span>}
+                            {isCorrect && <span className="text-[10px] sm:text-xs whitespace-nowrap">✓</span>}
                           </div>
                         );
                       })}

@@ -133,53 +133,55 @@ const Results = () => {
     <div className="min-h-screen animated-bg pb-20">
       {/* Header */}
       <header className="glass-card border-b border-primary/20">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <Button
             onClick={() => navigate('/dashboard')}
             variant="ghost"
+            size="sm"
             className="hover:bg-primary/10"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            <ArrowLeft className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Back</span>
           </Button>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
         {/* Score Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className={`glass-card mb-8 ${
+          <Card className={`glass-card mb-6 sm:mb-8 ${
             passed ? 'border-primary/50' : 'border-destructive/50'
           }`}>
-            <CardContent className="p-12 text-center">
+            <CardContent className="p-6 sm:p-12 text-center">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="mb-6"
+                className="mb-4 sm:mb-6"
               >
                 {passed ? (
-                  <Trophy className="w-24 h-24 text-primary mx-auto pulse-glow" />
+                  <Trophy className="w-16 h-16 sm:w-24 sm:h-24 text-primary mx-auto pulse-glow" />
                 ) : (
-                  <XCircle className="w-24 h-24 text-destructive mx-auto" />
+                  <XCircle className="w-16 h-16 sm:w-24 sm:h-24 text-destructive mx-auto" />
                 )}
               </motion.div>
 
-              <h1 className="text-4xl font-display mb-2">
+              <h1 className="text-2xl sm:text-4xl font-display mb-2">
                 {passed ? 'Congratulations!' : 'Keep Trying!'}
               </h1>
-              <p className="text-xl text-muted-foreground mb-8">
+              <p className="text-base sm:text-xl text-muted-foreground mb-6 sm:mb-8">
                 {exam?.title}
               </p>
 
-              <div className="max-w-md mx-auto mb-8">
+              <div className="max-w-md mx-auto mb-6 sm:mb-8">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-muted-foreground">Your Score</span>
-                  <span className={`text-2xl font-display ${
+                  <span className="text-xs sm:text-sm text-muted-foreground">Your Score</span>
+                  <span className={`text-xl sm:text-2xl font-display ${
                     passed ? 'gradient-text' : 'text-destructive'
                   }`}>
                     {percentage.toFixed(1)}%
@@ -187,25 +189,25 @@ const Results = () => {
                 </div>
                 <Progress 
                   value={percentage} 
-                  className={`h-3 ${passed ? '' : '[&>div]:bg-destructive'}`}
+                  className={`h-2 sm:h-3 ${passed ? '' : '[&>div]:bg-destructive'}`}
                 />
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                   Passing score: {exam?.passing_score}%
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 max-w-md mx-auto mb-8">
-                <div className="glass-card p-4">
-                  <div className="text-3xl font-display text-primary">{totalQuestions}</div>
-                  <div className="text-sm text-muted-foreground">Total</div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-md mx-auto mb-6 sm:mb-8">
+                <div className="glass-card p-3 sm:p-4">
+                  <div className="text-xl sm:text-3xl font-display text-primary">{totalQuestions}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Total</div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-3xl font-display text-primary">{correctCount}</div>
-                  <div className="text-sm text-muted-foreground">Correct</div>
+                <div className="glass-card p-3 sm:p-4">
+                  <div className="text-xl sm:text-3xl font-display text-primary">{correctCount}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Correct</div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-3xl font-display text-destructive">{totalQuestions - correctCount}</div>
-                  <div className="text-sm text-muted-foreground">Wrong</div>
+                <div className="glass-card p-3 sm:p-4">
+                  <div className="text-xl sm:text-3xl font-display text-destructive">{totalQuestions - correctCount}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Wrong</div>
                 </div>
               </div>
 
@@ -213,6 +215,7 @@ const Results = () => {
                 <Button
                   onClick={() => navigate('/dashboard')}
                   variant="outline"
+                  size="sm"
                   className="border-primary/30"
                 >
                   Dashboard
@@ -228,9 +231,9 @@ const Results = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <h2 className="text-2xl font-display mb-6">Detailed Results</h2>
+          <h2 className="text-xl sm:text-2xl font-display mb-4 sm:mb-6">Detailed Results</h2>
           
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {answers.map((answer, index) => {
               const question = answer.question;
               const isCorrect = answer.is_correct;
@@ -245,27 +248,27 @@ const Results = () => {
                   <Card className={`glass-card ${
                     isCorrect ? 'border-primary/30' : 'border-destructive/30'
                   }`}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <CardTitle className="flex-1 text-lg">
+                    <CardHeader className="p-4 sm:p-6">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="flex-1 text-sm sm:text-lg leading-relaxed">
                           <span className="text-muted-foreground mr-2">Q{index + 1}.</span>
                           {question.question_text}
                         </CardTitle>
                         {isCorrect ? (
-                          <CheckCircle className="w-6 h-6 text-primary flex-shrink-0 ml-4" />
+                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
                         ) : (
-                          <XCircle className="w-6 h-6 text-destructive flex-shrink-0 ml-4" />
+                          <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive flex-shrink-0" />
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-2 p-4 sm:p-6 pt-0 sm:pt-0">
                       {['A', 'B', 'C', 'D'].map((option) => {
                         const optionKey = `option_${option.toLowerCase()}` as keyof Question;
                         const optionText = question[optionKey] as string;
                         const isUserAnswer = answer.selected_answer === option;
                         const isCorrectAnswer = question.correct_answer === option;
 
-                        let className = "p-3 rounded-lg border ";
+                        let className = "p-2 sm:p-3 rounded-lg border ";
                         if (isCorrectAnswer) {
                           className += "border-primary/50 bg-primary/10";
                         } else if (isUserAnswer && !isCorrect) {
@@ -276,14 +279,14 @@ const Results = () => {
 
                         return (
                           <div key={option} className={className}>
-                            <div className="flex items-start gap-2">
-                              <span className="font-display min-w-[24px]">{option}.</span>
-                              <span className="flex-1">{optionText}</span>
+                            <div className="flex flex-wrap items-start gap-1 sm:gap-2">
+                              <span className="font-display min-w-[20px] sm:min-w-[24px] text-sm sm:text-base">{option}.</span>
+                              <span className="flex-1 text-sm sm:text-base">{optionText}</span>
                               {isUserAnswer && !isCorrect && (
-                                <span className="text-xs text-destructive">Your answer</span>
+                                <span className="text-[10px] sm:text-xs text-destructive whitespace-nowrap">Your answer</span>
                               )}
                               {isCorrectAnswer && (
-                                <span className="text-xs text-primary">Correct answer</span>
+                                <span className="text-[10px] sm:text-xs text-primary whitespace-nowrap">Correct</span>
                               )}
                             </div>
                           </div>
