@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { supabase, checkIsAdmin } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
-  Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw 
+  Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw, Eye, CheckCircle, XCircle 
 } from "lucide-react";
 import {
   Dialog,
@@ -34,6 +34,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Exam = Database['public']['Tables']['exams']['Row'];
 type Question = Database['public']['Tables']['questions']['Row'];
+type UserAnswer = Database['public']['Tables']['user_answers']['Row'] & {
+  questions?: Question;
+};
 type UserAttempt = Database['public']['Tables']['user_exam_attempts']['Row'] & {
   profiles?: { full_name: string | null; email: string };
   exams?: { title: string };
@@ -51,6 +54,10 @@ const Admin = () => {
   const [showQuestionDialog, setShowQuestionDialog] = useState(false);
   const [deleteExamId, setDeleteExamId] = useState<string | null>(null);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [showAnswersDialog, setShowAnswersDialog] = useState(false);
+  const [selectedAttempt, setSelectedAttempt] = useState<UserAttempt | null>(null);
+  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
+  const [loadingAnswers, setLoadingAnswers] = useState(false);
   
   // Form states
   const [examForm, setExamForm] = useState({
@@ -288,18 +295,52 @@ const Admin = () => {
     setDeleteExamId(null);
   };
 
-  const handleAllowRetake = async (attemptId: string) => {
+  const handleAllowRetake = async (attemptId: string, userName: string) => {
+    if (!confirm(`Allow ${userName || 'this user'} to retake the exam? This will delete their current attempt.`)) {
+      return;
+    }
+    
     const { error } = await supabase
       .from('user_exam_attempts')
       .delete()
       .eq('id', attemptId);
 
     if (error) {
-      toast.error("Failed to allow retake");
+      console.error('Allow retake error:', error);
+      toast.error("Failed to allow retake: " + error.message);
     } else {
       toast.success("User can now retake the exam!");
       await loadUserAttempts();
     }
+  };
+
+  const handleViewAnswers = async (attempt: UserAttempt) => {
+    setSelectedAttempt(attempt);
+    setLoadingAnswers(true);
+    setShowAnswersDialog(true);
+
+    // Get user answers for this attempt
+    const { data: answers } = await supabase
+      .from('user_answers')
+      .select('*')
+      .eq('attempt_id', attempt.id);
+
+    if (answers) {
+      // Fetch questions for these answers
+      const questionIds = answers.map(a => a.question_id);
+      const { data: questionsData } = await supabase
+        .from('questions')
+        .select('*')
+        .in('id', questionIds);
+
+      const enrichedAnswers = answers.map(answer => ({
+        ...answer,
+        questions: questionsData?.find(q => q.id === answer.question_id),
+      }));
+
+      setUserAnswers(enrichedAnswers as UserAnswer[]);
+    }
+    setLoadingAnswers(false);
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
@@ -781,15 +822,24 @@ const Admin = () => {
                             })}
                           </td>
                           <td className="p-3 md:p-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleAllowRetake(attempt.id)}
-                              className="text-primary hover:text-primary hover:bg-primary/10"
-                            >
-                              <RotateCcw className="w-4 h-4 md:mr-1" />
-                              <span className="hidden md:inline">Allow Retake</span>
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleViewAnswers(attempt)}
+                                className="text-secondary hover:text-secondary hover:bg-secondary/10"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleAllowRetake(attempt.id, attempt.profiles?.full_name || '')}
+                                className="text-primary hover:text-primary hover:bg-primary/10"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -822,6 +872,71 @@ const Admin = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View User Answers Dialog */}
+      <Dialog open={showAnswersDialog} onOpenChange={setShowAnswersDialog}>
+        <DialogContent className="glass-card border-primary/30 max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl md:text-2xl">
+              {selectedAttempt?.profiles?.full_name || 'User'}'s Answers
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {selectedAttempt?.exams?.title} - Score: {selectedAttempt?.percentage?.toFixed(0)}%
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingAnswers ? (
+            <div className="flex items-center justify-center py-8">
+              <Brain className="w-8 h-8 text-primary animate-pulse" />
+            </div>
+          ) : (
+            <div className="space-y-4 mt-4">
+              {userAnswers.map((answer, index) => {
+                const question = answer.questions;
+                if (!question) return null;
+                
+                return (
+                  <Card key={answer.id} className={`glass-card ${answer.is_correct ? 'border-primary/30' : 'border-destructive/30'}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-sm md:text-base font-medium flex-1">
+                          <span className="text-muted-foreground mr-2">Q{index + 1}.</span>
+                          {question.question_text}
+                        </CardTitle>
+                        {answer.is_correct ? (
+                          <CheckCircle className="w-5 h-5 text-primary shrink-0" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-destructive shrink-0" />
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-xs md:text-sm">
+                      {['A', 'B', 'C', 'D'].map((opt) => {
+                        const optKey = `option_${opt.toLowerCase()}` as keyof Question;
+                        const isCorrect = question.correct_answer === opt;
+                        const isSelected = answer.selected_answer === opt;
+                        
+                        let bgClass = '';
+                        if (isCorrect) bgClass = 'bg-primary/20 text-primary';
+                        else if (isSelected && !isCorrect) bgClass = 'bg-destructive/20 text-destructive';
+                        
+                        return (
+                          <div key={opt} className={`p-2 rounded flex items-center gap-2 ${bgClass}`}>
+                            <span className="font-medium">{opt}.</span>
+                            <span className="flex-1">{question[optKey] as string}</span>
+                            {isSelected && <span className="text-xs">← User's answer</span>}
+                            {isCorrect && <span className="text-xs">✓ Correct</span>}
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
