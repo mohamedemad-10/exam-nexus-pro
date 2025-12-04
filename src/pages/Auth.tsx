@@ -71,36 +71,36 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center animated-bg p-4">
+    <div className="min-h-screen flex items-center justify-center animated-bg p-3 sm:p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="inline-block"
           >
-            <Brain className="w-16 h-16 text-primary mx-auto mb-4 pulse-glow" />
+            <Brain className="w-12 h-12 sm:w-16 sm:h-16 text-primary mx-auto mb-3 sm:mb-4 pulse-glow" />
           </motion.div>
-          <h1 className="text-4xl font-display gradient-text mb-2">ExamPro</h1>
-          <p className="text-muted-foreground">Access your examination portal</p>
+          <h1 className="text-3xl sm:text-4xl font-display gradient-text mb-1 sm:mb-2">ExamPro</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Access your examination portal</p>
         </div>
 
         <Card className="glass-card border-primary/20">
-          <CardHeader>
-            <CardTitle className="font-display text-2xl">Welcome</CardTitle>
-            <CardDescription>Sign in or create an account to continue</CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="font-display text-xl sm:text-2xl">Welcome</CardTitle>
+            <CardDescription className="text-sm">Sign in or create an account to continue</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6">
+                <TabsTrigger value="login" className="text-sm">Login</TabsTrigger>
+                <TabsTrigger value="signup" className="text-sm">Sign Up</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
