@@ -1,1 +1,10 @@
 project_id = "lhdwmdebrqezcyjnrbnb"
+
+[functions.create-user]
+verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = false
+
+[functions.pdf-to-exam]
+verify_jwt = false
