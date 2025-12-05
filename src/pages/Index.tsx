@@ -275,9 +275,19 @@ const Index = () => {
               <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               <span className="font-display text-sm sm:text-base">ExamPro</span>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              © 2024 ExamPro. All rights reserved.
-            </p>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/contact')}
+                className="text-muted-foreground hover:text-primary"
+              >
+                Contact
+              </Button>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                © 2024 ExamPro. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </footer>

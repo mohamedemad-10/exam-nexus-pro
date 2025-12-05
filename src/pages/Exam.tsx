@@ -230,6 +230,13 @@ const Exam = () => {
                 <CardTitle className="text-lg sm:text-2xl font-display leading-relaxed">
                   {currentQuestion?.question_text}
                 </CardTitle>
+                {currentQuestion?.image_url && (
+                  <img 
+                    src={currentQuestion.image_url} 
+                    alt="Question" 
+                    className="mt-4 max-h-48 sm:max-h-64 rounded-lg object-contain mx-auto"
+                  />
+                )}
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
                 {['A', 'B', 'C', 'D'].map((option) => {

@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_read: boolean | null
+          message: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      device_registrations: {
+        Row: {
+          created_at: string
+          device_fingerprint: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_fingerprint: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_fingerprint?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exams: {
         Row: {
           created_at: string
@@ -50,6 +101,44 @@ export type Database = {
         }
         Relationships: []
       }
+      passages: {
+        Row: {
+          content: string
+          created_at: string
+          exam_id: string
+          id: string
+          image_url: string | null
+          order_index: number | null
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          exam_id: string
+          id?: string
+          image_url?: string | null
+          order_index?: number | null
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          exam_id?: string
+          id?: string
+          image_url?: string | null
+          order_index?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passages_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -57,6 +146,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          phone: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -64,6 +154,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          phone?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -71,6 +162,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          phone?: string | null
         }
         Relationships: []
       }
@@ -80,11 +172,13 @@ export type Database = {
           created_at: string
           exam_id: string
           id: string
+          image_url: string | null
           option_a: string
           option_b: string
           option_c: string
           option_d: string
           order_index: number
+          passage_id: string | null
           points: number
           question_text: string
         }
@@ -93,11 +187,13 @@ export type Database = {
           created_at?: string
           exam_id: string
           id?: string
+          image_url?: string | null
           option_a: string
           option_b: string
           option_c: string
           option_d: string
           order_index?: number
+          passage_id?: string | null
           points?: number
           question_text: string
         }
@@ -106,11 +202,13 @@ export type Database = {
           created_at?: string
           exam_id?: string
           id?: string
+          image_url?: string | null
           option_a?: string
           option_b?: string
           option_c?: string
           option_d?: string
           order_index?: number
+          passage_id?: string | null
           points?: number
           question_text?: string
         }
@@ -120,6 +218,13 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_passage_id_fkey"
+            columns: ["passage_id"]
+            isOneToOne: false
+            referencedRelation: "passages"
             referencedColumns: ["id"]
           },
         ]
