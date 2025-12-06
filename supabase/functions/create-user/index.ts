@@ -6,6 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Generate a unique 8-character alphanumeric ID
+function generateUserId(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like 0, O, 1, I
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -50,21 +60,39 @@ serve(async (req) => {
       });
     }
 
-    const { email, password, full_name, phone } = await req.json();
+    const { password, full_name, phone } = await req.json();
 
-    if (!email || !password || !full_name) {
-      return new Response(JSON.stringify({ error: "Email, password, and full name are required" }), {
+    if (!password || !full_name) {
+      return new Response(JSON.stringify({ error: "Password and full name are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create user
+    // Generate unique user_id for login
+    let userId = generateUserId();
+    let attempts = 0;
+    while (attempts < 10) {
+      const { data: existing } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (!existing) break;
+      userId = generateUserId();
+      attempts++;
+    }
+
+    // Create a fake email using the user_id for Supabase Auth
+    const fakeEmail = `${userId.toLowerCase()}@exampro.local`;
+
+    // Create user with generated email
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: fakeEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name, phone },
+      user_metadata: { full_name, phone, user_id: userId },
     });
 
     if (createError) {
@@ -75,17 +103,17 @@ serve(async (req) => {
       });
     }
 
-    // Update profile with phone
+    // Update profile with user_id and phone
     if (userData.user) {
       await supabaseAdmin
         .from("profiles")
-        .update({ phone, full_name })
+        .update({ phone, full_name, user_id: userId })
         .eq("id", userData.user.id);
     }
 
-    console.log("User created successfully:", userData.user?.id);
+    console.log("User created successfully:", userData.user?.id, "with login ID:", userId);
 
-    return new Response(JSON.stringify({ success: true, user: userData.user }), {
+    return new Response(JSON.stringify({ success: true, user: userData.user, loginId: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {

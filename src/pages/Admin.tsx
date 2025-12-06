@@ -60,6 +60,7 @@ const Admin = () => {
   const [showQuestionDialog, setShowQuestionDialog] = useState(false);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [showPdfDialog, setShowPdfDialog] = useState(false);
+  const [showPassageDialog, setShowPassageDialog] = useState(false);
   const [deleteExamId, setDeleteExamId] = useState<string | null>(null);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [showAnswersDialog, setShowAnswersDialog] = useState(false);
@@ -69,7 +70,11 @@ const Admin = () => {
   const [processingPdf, setProcessingPdf] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  const [passageForm, setPassageForm] = useState({
+    title: '',
+    content: '',
+  });
   const [examForm, setExamForm] = useState({
     title: '',
     description: '',
@@ -78,11 +83,14 @@ const Admin = () => {
   });
 
   const [userForm, setUserForm] = useState({
-    email: '',
     password: '',
     full_name: '',
     phone: '',
   });
+
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+
+  const [passages, setPassages] = useState<any[]>([]);
   
   const [questionForms, setQuestionForms] = useState([{
     question_text: '',
@@ -92,6 +100,7 @@ const Admin = () => {
     option_d: '',
     correct_answer: 'A',
     image_url: '',
+    passage_id: '',
   }]);
 
   useEffect(() => {
@@ -186,13 +195,58 @@ const Admin = () => {
     }
   };
 
+  const loadPassages = async (examId: string) => {
+    const { data } = await supabase
+      .from('passages')
+      .select('*')
+      .eq('exam_id', examId)
+      .order('order_index', { ascending: true });
+    if (data) setPassages(data);
+  };
+
+  const handleAddPassage = async () => {
+    if (!selectedExam || !passageForm.title.trim() || !passageForm.content.trim()) {
+      toast.error("Please fill in passage title and content");
+      return;
+    }
+
+    const { error } = await supabase.from('passages').insert({
+      exam_id: selectedExam.id,
+      title: passageForm.title,
+      content: passageForm.content,
+      order_index: passages.length,
+    });
+
+    if (error) {
+      toast.error("Failed to add passage");
+    } else {
+      toast.success("Passage added successfully");
+      setShowPassageDialog(false);
+      setPassageForm({ title: '', content: '' });
+      await loadPassages(selectedExam.id);
+    }
+  };
+
+  const handleDeletePassage = async (passageId: string) => {
+    if (!confirm("Delete this passage?")) return;
+    
+    const { error } = await supabase.from('passages').delete().eq('id', passageId);
+    if (error) {
+      toast.error("Failed to delete passage");
+    } else {
+      toast.success("Passage deleted");
+      if (selectedExam) await loadPassages(selectedExam.id);
+    }
+  };
+
   const handleCreateUser = async () => {
-    if (!userForm.email || !userForm.password || !userForm.full_name) {
-      toast.error("Email, password, and name are required");
+    if (!userForm.password || !userForm.full_name) {
+      toast.error("Password and name are required");
       return;
     }
 
     setCreatingUser(true);
+    setCreatedUserId(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
@@ -208,9 +262,8 @@ const Admin = () => {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("User created successfully");
-        setShowUserDialog(false);
-        setUserForm({ email: '', password: '', full_name: '', phone: '' });
+        setCreatedUserId(result.loginId);
+        toast.success(`User created! Login ID: ${result.loginId}`);
         await loadUsers();
       }
     } catch (error: any) {
@@ -312,6 +365,7 @@ const Admin = () => {
       option_d: q.option_d,
       correct_answer: q.correct_answer,
       image_url: q.image_url || null,
+      passage_id: q.passage_id || null,
       exam_id: selectedExam.id,
       order_index: questions.length + index,
     }));
@@ -331,6 +385,7 @@ const Admin = () => {
         option_d: '',
         correct_answer: 'A',
         image_url: '',
+        passage_id: '',
       }]);
       await loadQuestions(selectedExam.id);
     }
@@ -404,6 +459,7 @@ const Admin = () => {
             option_d: q.option_d || '',
             correct_answer: q.correct_answer || 'A',
             image_url: '',
+            passage_id: '',
           })));
           toast.success(`Extracted ${result.questions.length} questions from PDF`);
           setShowPdfDialog(false);
@@ -429,6 +485,7 @@ const Admin = () => {
       option_d: '',
       correct_answer: 'A',
       image_url: '',
+      passage_id: '',
     }]);
   };
 
@@ -673,6 +730,7 @@ const Admin = () => {
                       onClick={() => {
                         setSelectedExam(exam);
                         loadQuestions(exam.id);
+                        loadPassages(exam.id);
                       }}
                     >
                       <CardHeader className="p-4">
@@ -705,8 +763,44 @@ const Admin = () => {
                 {selectedExam ? (
                   <>
                     <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
-                      <h2 className="text-xl font-display">Questions</h2>
-                      <div className="flex gap-2">
+                      <h2 className="text-xl font-display">Questions & Passages</h2>
+                      <div className="flex flex-wrap gap-2">
+                        <Dialog open={showPassageDialog} onOpenChange={setShowPassageDialog}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <BookOpen className="w-4 h-4 mr-2" />
+                              Passage
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="glass-card border-primary/30 max-w-lg mx-2">
+                            <DialogHeader>
+                              <DialogTitle className="font-display">Add Passage</DialogTitle>
+                              <DialogDescription>Add a reading passage for questions</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Title</Label>
+                                <Input value={passageForm.title} onChange={(e) => setPassageForm({...passageForm, title: e.target.value})} placeholder="Passage title" />
+                              </div>
+                              <div>
+                                <Label>Content</Label>
+                                <Textarea value={passageForm.content} onChange={(e) => setPassageForm({...passageForm, content: e.target.value})} placeholder="Passage text..." rows={6} />
+                              </div>
+                              {passages.length > 0 && (
+                                <div className="border-t pt-3">
+                                  <Label className="text-xs text-muted-foreground mb-2 block">Existing Passages</Label>
+                                  {passages.map((p) => (
+                                    <div key={p.id} className="flex justify-between items-center py-1">
+                                      <span className="text-sm">{p.title}</span>
+                                      <Button variant="ghost" size="sm" onClick={() => handleDeletePassage(p.id)} className="text-destructive h-6 w-6 p-0"><Trash2 className="w-3 h-3" /></Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <Button onClick={handleAddPassage} className="w-full btn-glow bg-primary"><Save className="w-4 h-4 mr-2" />Save Passage</Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -824,18 +918,33 @@ const Admin = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div>
-                                      <Label className="text-sm">Correct</Label>
-                                      <select
-                                        className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm"
-                                        value={form.correct_answer}
-                                        onChange={(e) => updateQuestionForm(index, 'correct_answer', e.target.value)}
-                                      >
-                                        <option value="A">A</option>
-                                        <option value="B">B</option>
-                                        <option value="C">C</option>
-                                        <option value="D">D</option>
-                                      </select>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <Label className="text-sm">Correct Answer</Label>
+                                        <select
+                                          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm"
+                                          value={form.correct_answer}
+                                          onChange={(e) => updateQuestionForm(index, 'correct_answer', e.target.value)}
+                                        >
+                                          <option value="A">A</option>
+                                          <option value="B">B</option>
+                                          <option value="C">C</option>
+                                          <option value="D">D</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <Label className="text-sm">Link to Passage</Label>
+                                        <select
+                                          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm"
+                                          value={form.passage_id}
+                                          onChange={(e) => updateQuestionForm(index, 'passage_id', e.target.value)}
+                                        >
+                                          <option value="">No Passage</option>
+                                          {passages.map((p) => (
+                                            <option key={p.id} value={p.id}>{p.title}</option>
+                                          ))}
+                                        </select>
+                                      </div>
                                     </div>
                                   </div>
                                 </Card>
@@ -913,7 +1022,13 @@ const Admin = () => {
           <TabsContent value="users">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-display">User Management</h2>
-              <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
+              <Dialog open={showUserDialog} onOpenChange={(open) => {
+                setShowUserDialog(open);
+                if (!open) {
+                  setCreatedUserId(null);
+                  setUserForm({ password: '', full_name: '', phone: '' });
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button className="btn-glow bg-primary hover:bg-primary/90" size="sm">
                     <UserPlus className="w-4 h-4 mr-2" />
@@ -922,49 +1037,72 @@ const Admin = () => {
                 </DialogTrigger>
                 <DialogContent className="glass-card border-primary/30 max-w-md mx-2">
                   <DialogHeader>
-                    <DialogTitle className="font-display text-xl">Create User</DialogTitle>
-                    <DialogDescription>Add a new user to the system</DialogDescription>
+                    <DialogTitle className="font-display text-xl">
+                      {createdUserId ? 'User Created!' : 'Create User'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {createdUserId ? 'Share these credentials with the user' : 'Add a new user to the system'}
+                    </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Full Name *</Label>
-                      <Input
-                        value={userForm.full_name}
-                        onChange={(e) => setUserForm({...userForm, full_name: e.target.value})}
-                        placeholder="John Doe"
-                      />
+                  
+                  {createdUserId ? (
+                    <div className="space-y-4">
+                      <Card className="bg-primary/10 border-primary/30 p-4">
+                        <div className="text-center space-y-3">
+                          <p className="text-sm text-muted-foreground">User Login ID</p>
+                          <p className="text-3xl font-mono font-bold gradient-text tracking-widest">{createdUserId}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Share this ID with the user. They will use it along with the password to sign in.
+                          </p>
+                        </div>
+                      </Card>
+                      <Button onClick={() => {
+                        navigator.clipboard.writeText(createdUserId);
+                        toast.success("ID copied to clipboard!");
+                      }} variant="outline" className="w-full">
+                        Copy ID to Clipboard
+                      </Button>
+                      <Button onClick={() => {
+                        setShowUserDialog(false);
+                        setCreatedUserId(null);
+                        setUserForm({ password: '', full_name: '', phone: '' });
+                      }} className="w-full btn-glow bg-primary">
+                        Done
+                      </Button>
                     </div>
-                    <div>
-                      <Label>Email *</Label>
-                      <Input
-                        type="email"
-                        value={userForm.email}
-                        onChange={(e) => setUserForm({...userForm, email: e.target.value})}
-                        placeholder="user@example.com"
-                      />
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Full Name *</Label>
+                        <Input
+                          value={userForm.full_name}
+                          onChange={(e) => setUserForm({...userForm, full_name: e.target.value})}
+                          placeholder="John Doe"
+                        />
+                      </div>
+                      <div>
+                        <Label>Password *</Label>
+                        <Input
+                          type="password"
+                          value={userForm.password}
+                          onChange={(e) => setUserForm({...userForm, password: e.target.value})}
+                          placeholder="Min 6 characters"
+                        />
+                      </div>
+                      <div>
+                        <Label>Phone</Label>
+                        <Input
+                          value={userForm.phone}
+                          onChange={(e) => setUserForm({...userForm, phone: e.target.value})}
+                          placeholder="+1234567890"
+                        />
+                      </div>
+                      <Button onClick={handleCreateUser} className="w-full btn-glow bg-primary" disabled={creatingUser}>
+                        {creatingUser ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                        Create User
+                      </Button>
                     </div>
-                    <div>
-                      <Label>Password *</Label>
-                      <Input
-                        type="password"
-                        value={userForm.password}
-                        onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                        placeholder="Min 6 characters"
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <Input
-                        value={userForm.phone}
-                        onChange={(e) => setUserForm({...userForm, phone: e.target.value})}
-                        placeholder="+1234567890"
-                      />
-                    </div>
-                    <Button onClick={handleCreateUser} className="w-full btn-glow bg-primary" disabled={creatingUser}>
-                      {creatingUser ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                      Create User
-                    </Button>
-                  </div>
+                  )}
                 </DialogContent>
               </Dialog>
             </div>
@@ -975,26 +1113,28 @@ const Admin = () => {
                   <table className="w-full">
                     <thead className="border-b border-border/50 bg-muted/20">
                       <tr>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">User ID</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Name</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Email</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Phone</th>
                         <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {users.map((u) => (
+                      {users.map((u: any) => (
                         <tr key={u.id} className="hover:bg-primary/5">
                           <td className="p-3">
-                            <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
-                            <p className="text-xs text-muted-foreground sm:hidden">{u.email}</p>
+                            <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
                           </td>
-                          <td className="p-3 text-sm hidden sm:table-cell">{u.email}</td>
+                          <td className="p-3">
+                            <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground md:hidden">{u.phone || ''}</p>
+                          </td>
                           <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">{u.phone || '-'}</td>
                           <td className="p-3 text-right">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDeleteUser(u.id, u.full_name || u.email)}
+                              onClick={() => handleDeleteUser(u.id, u.full_name || u.user_id)}
                               className="text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="w-4 h-4" />

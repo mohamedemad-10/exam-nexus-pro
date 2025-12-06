@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { signIn, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { getStoredFingerprint } from "@/lib/deviceFingerprint";
-import { Brain, Loader2 } from "lucide-react";
+import { Brain, Loader2, User, Lock } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => {
@@ -33,17 +33,34 @@ const Auth = () => {
     try {
       const deviceFingerprint = getStoredFingerprint();
       
+      // First, find the user by their user_id to get the email
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, email, user_id")
+        .eq("user_id", loginId.toUpperCase())
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        toast.error("Invalid User ID");
+        setLoading(false);
+        return;
+      }
+
       // Check if this device is already registered to another user
       const { data: existingDevice } = await supabase
         .from("device_registrations")
-        .select("user_id, profiles(email)")
+        .select("user_id")
         .eq("device_fingerprint", deviceFingerprint)
         .maybeSingle();
 
-      const { data, error } = await signIn(loginEmail, loginPassword);
+      // Sign in with the email associated with the user_id
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password: loginPassword,
+      });
       
       if (error) {
-        toast.error(error.message);
+        toast.error("Invalid credentials");
         setLoading(false);
         return;
       }
@@ -94,35 +111,44 @@ const Auth = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="inline-block"
           >
-            <Brain className="w-12 h-12 sm:w-16 sm:h-16 text-primary mx-auto mb-3 sm:mb-4 pulse-glow" />
+            <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-glow-cyan">
+              <Brain className="w-10 h-10 sm:w-12 sm:h-12 text-primary-foreground" />
+            </div>
           </motion.div>
           <h1 className="text-3xl sm:text-4xl font-display gradient-text mb-1 sm:mb-2">ExamPro</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Access your examination portal</p>
         </div>
 
-        <Card className="glass-card border-primary/20">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="font-display text-xl sm:text-2xl">Sign In</CardTitle>
+        <Card className="glass-card border-primary/30 shadow-glow-cyan">
+          <CardHeader className="p-5 sm:p-6 text-center">
+            <CardTitle className="font-display text-xl sm:text-2xl gradient-text">Sign In</CardTitle>
             <CardDescription className="text-sm">
-              Enter your credentials to access your account
+              Enter your User ID and password to continue
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-            <form onSubmit={handleLogin} className="space-y-4">
+          <CardContent className="p-5 sm:p-6 pt-0">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
+                <Label htmlFor="login-id" className="flex items-center gap-2 text-sm font-medium">
+                  <User className="w-4 h-4 text-primary" />
+                  User ID
+                </Label>
                 <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
+                  id="login-id"
+                  type="text"
+                  placeholder="Enter your User ID (e.g., ABC12345)"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value.toUpperCase())}
                   required
-                  className="bg-background/50"
+                  className="bg-background/50 border-border/50 focus:border-primary h-12 text-center font-mono text-lg tracking-widest uppercase"
+                  maxLength={8}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
+                <Label htmlFor="login-password" className="flex items-center gap-2 text-sm font-medium">
+                  <Lock className="w-4 h-4 text-secondary" />
+                  Password
+                </Label>
                 <Input
                   id="login-password"
                   type="password"
@@ -130,17 +156,17 @@ const Auth = () => {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
-                  className="bg-background/50"
+                  className="bg-background/50 border-border/50 focus:border-primary h-12"
                 />
               </div>
               <Button 
                 type="submit" 
-                className="w-full btn-glow bg-primary hover:bg-primary/90"
+                className="w-full btn-glow bg-gradient-to-r from-primary to-secondary hover:opacity-90 h-12 text-base font-semibold"
                 disabled={loading}
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Signing in...
                   </>
                 ) : (
@@ -151,9 +177,14 @@ const Auth = () => {
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Contact administrator if you need an account
-        </p>
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-sm text-muted-foreground mt-6 px-4"
+        >
+          Don't have an account? Contact your administrator to get your User ID and password.
+        </motion.p>
       </motion.div>
     </div>
   );
