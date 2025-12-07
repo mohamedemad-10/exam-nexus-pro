@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Brain, Clock, ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { Brain, Clock, ChevronLeft, ChevronRight, Send, BookOpen } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,12 +21,14 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Question = Database['public']['Tables']['questions']['Row'];
 type Exam = Database['public']['Tables']['exams']['Row'];
+type Passage = Database['public']['Tables']['passages']['Row'];
 
-const Exam = () => {
+const ExamPage = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [passages, setPassages] = useState<Passage[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
@@ -72,6 +74,17 @@ const Exam = () => {
 
       setExam(examData);
       setTimeLeft(examData.duration_minutes * 60);
+
+      // Fetch passages for this exam
+      const { data: passagesData } = await supabase
+        .from('passages')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('order_index', { ascending: true });
+
+      if (passagesData) {
+        setPassages(passagesData);
+      }
 
       // Fetch questions
       const { data: questionsData } = await supabase
@@ -184,6 +197,11 @@ const Exam = () => {
 
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const currentQuestion = questions[currentQuestionIndex];
+  
+  // Find the passage for current question
+  const currentPassage = currentQuestion?.passage_id 
+    ? passages.find(p => p.id === currentQuestion.passage_id) 
+    : null;
 
   if (loading) {
     return (
@@ -225,6 +243,31 @@ const Exam = () => {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
+            {/* Passage Display */}
+            {currentPassage && (
+              <Card className="glass-card border-secondary/30 mb-4">
+                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+                  <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
+                    {currentPassage.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                  <div className="prose prose-sm max-w-none text-muted-foreground text-sm sm:text-base leading-relaxed max-h-48 sm:max-h-64 overflow-y-auto">
+                    {currentPassage.content}
+                  </div>
+                  {currentPassage.image_url && (
+                    <img 
+                      src={currentPassage.image_url} 
+                      alt="Passage illustration" 
+                      className="mt-4 max-h-32 sm:max-h-48 rounded-lg object-contain mx-auto"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Question Card */}
             <Card className="glass-card border-primary/30">
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-lg sm:text-2xl font-display leading-relaxed">
@@ -333,4 +376,4 @@ const Exam = () => {
   );
 };
 
-export default Exam;
+export default ExamPage;

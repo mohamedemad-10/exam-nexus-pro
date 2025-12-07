@@ -60,7 +60,7 @@ serve(async (req) => {
       });
     }
 
-    const { password, full_name, phone } = await req.json();
+    const { password, full_name, phone, class: userClass } = await req.json();
 
     if (!password || !full_name) {
       return new Response(JSON.stringify({ error: "Password and full name are required" }), {
@@ -103,11 +103,11 @@ serve(async (req) => {
       });
     }
 
-    // Update profile with user_id and phone
+    // Update profile with user_id, phone, and class
     if (userData.user) {
       await supabaseAdmin
         .from("profiles")
-        .update({ phone, full_name, user_id: userId })
+        .update({ phone, full_name, user_id: userId, class: userClass || null })
         .eq("id", userData.user.id);
     }
 

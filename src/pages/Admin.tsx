@@ -86,6 +86,7 @@ const Admin = () => {
     password: '',
     full_name: '',
     phone: '',
+    class: '',
   });
 
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
@@ -249,7 +250,8 @@ const Admin = () => {
     setCreatedUserId(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
+      const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +280,8 @@ const Admin = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
+      const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -434,7 +437,8 @@ const Admin = () => {
         
         // For now, we'll use the raw text. In production, you'd use a proper PDF parser
         const { data: { session } } = await supabase.auth.getSession();
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pdf-to-exam`, {
+        const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/pdf-to-exam`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1026,7 +1030,7 @@ const Admin = () => {
                 setShowUserDialog(open);
                 if (!open) {
                   setCreatedUserId(null);
-                  setUserForm({ password: '', full_name: '', phone: '' });
+                  setUserForm({ password: '', full_name: '', phone: '', class: '' });
                 }
               }}>
                 <DialogTrigger asChild>
@@ -1065,7 +1069,7 @@ const Admin = () => {
                       <Button onClick={() => {
                         setShowUserDialog(false);
                         setCreatedUserId(null);
-                        setUserForm({ password: '', full_name: '', phone: '' });
+                        setUserForm({ password: '', full_name: '', phone: '', class: '' });
                       }} className="w-full btn-glow bg-primary">
                         Done
                       </Button>
@@ -1097,6 +1101,14 @@ const Admin = () => {
                           placeholder="+1234567890"
                         />
                       </div>
+                      <div>
+                        <Label>Class</Label>
+                        <Input
+                          value={userForm.class}
+                          onChange={(e) => setUserForm({...userForm, class: e.target.value})}
+                          placeholder="e.g. Class A, Grade 10"
+                        />
+                      </div>
                       <Button onClick={handleCreateUser} className="w-full btn-glow bg-primary" disabled={creatingUser}>
                         {creatingUser ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                         Create User
@@ -1115,7 +1127,8 @@ const Admin = () => {
                       <tr>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">User ID</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Name</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Phone</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Class</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden lg:table-cell">Phone</th>
                         <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
@@ -1127,9 +1140,12 @@ const Admin = () => {
                           </td>
                           <td className="p-3">
                             <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
-                            <p className="text-xs text-muted-foreground md:hidden">{u.phone || ''}</p>
+                            <p className="text-xs text-muted-foreground md:hidden">{u.class || ''}</p>
                           </td>
-                          <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">{u.phone || '-'}</td>
+                          <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
+                            <span className="px-2 py-1 rounded-full bg-secondary/20 text-secondary text-xs">{u.class || '-'}</span>
+                          </td>
+                          <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{u.phone || '-'}</td>
                           <td className="p-3 text-right">
                             <Button
                               size="sm"
