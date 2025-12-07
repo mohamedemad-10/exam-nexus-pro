@@ -177,8 +177,9 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-display text-lg mb-1">Email</h3>
-                    <p className="text-muted-foreground text-sm sm:text-base">support@exampro.com</p>
-                    <p className="text-muted-foreground text-sm sm:text-base">info@exampro.com</p>
+                    <a href="mailto:mohamed.emad.deve@gmail.com" className="text-muted-foreground text-sm sm:text-base hover:text-primary transition-colors">
+                      mohamed.emad.deve@gmail.com
+                    </a>
                   </div>
                 </div>
               </CardContent>
@@ -192,8 +193,10 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-display text-lg mb-1">Phone</h3>
-                    <p className="text-muted-foreground text-sm sm:text-base">+1 (555) 123-4567</p>
-                    <p className="text-muted-foreground text-sm sm:text-base">Mon-Fri 9am-6pm EST</p>
+                    <a href="tel:01558042651" className="text-muted-foreground text-sm sm:text-base hover:text-secondary transition-colors">
+                      01558042651
+                    </a>
+                    <p className="text-muted-foreground text-xs mt-1">Available 24/7</p>
                   </div>
                 </div>
               </CardContent>
