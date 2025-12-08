@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase, checkIsAdmin } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
   Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw, Eye, 
-  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare
+  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star
 } from "lucide-react";
 import {
   Dialog,
@@ -46,6 +47,24 @@ type UserAttempt = Database['public']['Tables']['user_exam_attempts']['Row'] & {
   exams?: { title: string };
 };
 
+const GRADE_OPTIONS = [
+  { value: '3prp', label: '3 Prep' },
+  { value: '1sec', label: '1 Sec' },
+  { value: '2sec', label: '2 Sec' },
+  { value: '3sec', label: '3 Sec' },
+  { value: 'general', label: 'General' },
+];
+
+// Generate random 8-char ID
+const generateRandomId = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 const Admin = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
@@ -55,12 +74,17 @@ const Admin = () => {
   const [userAttempts, setUserAttempts] = useState<UserAttempt[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [testimonials, setTestimonials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExamDialog, setShowExamDialog] = useState(false);
   const [showQuestionDialog, setShowQuestionDialog] = useState(false);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [showPdfDialog, setShowPdfDialog] = useState(false);
   const [showPassageDialog, setShowPassageDialog] = useState(false);
+  const [showTestimonialDialog, setShowTestimonialDialog] = useState(false);
+  const [showReplyDialog, setShowReplyDialog] = useState(false);
+  const [replyMessage, setReplyMessage] = useState<ContactMessage | null>(null);
+  const [replyText, setReplyText] = useState('');
   const [deleteExamId, setDeleteExamId] = useState<string | null>(null);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [showAnswersDialog, setShowAnswersDialog] = useState(false);
@@ -70,6 +94,7 @@ const Admin = () => {
   const [processingPdf, setProcessingPdf] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [adminUserIds, setAdminUserIds] = useState<string[]>([]);
 
   const [passageForm, setPassageForm] = useState({
     title: '',
@@ -83,13 +108,20 @@ const Admin = () => {
   });
 
   const [userForm, setUserForm] = useState({
-    password: '',
     full_name: '',
     phone: '',
     class: '',
   });
 
+  const [testimonialForm, setTestimonialForm] = useState({
+    name: '',
+    role: '',
+    content: '',
+    avatar: '',
+  });
+
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
 
   const [passages, setPassages] = useState<any[]>([]);
   
@@ -126,12 +158,24 @@ const Admin = () => {
         loadUserAttempts(),
         loadUsers(),
         loadContactMessages(),
+        loadTestimonials(),
+        loadAdminUsers(),
       ]);
       setLoading(false);
     };
 
     checkAuthAndAdmin();
   }, [navigate]);
+
+  const loadAdminUsers = async () => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'admin');
+    if (data) {
+      setAdminUserIds(data.map(r => r.user_id));
+    }
+  };
 
   const loadExams = async () => {
     const { data } = await supabase
@@ -164,6 +208,14 @@ const Admin = () => {
       .select('*')
       .order('created_at', { ascending: false });
     if (data) setContactMessages(data);
+  };
+
+  const loadTestimonials = async () => {
+    const { data } = await supabase
+      .from('testimonials')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setTestimonials(data);
   };
 
   const loadUserAttempts = async () => {
@@ -240,14 +292,34 @@ const Admin = () => {
     }
   };
 
+  const validateFullName = (name: string): boolean => {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 3 && parts.every(p => p.length > 0);
+  };
+
   const handleCreateUser = async () => {
-    if (!userForm.password || !userForm.full_name) {
-      toast.error("Password and name are required");
+    if (!userForm.full_name) {
+      toast.error("Full name is required");
       return;
     }
 
+    if (!validateFullName(userForm.full_name)) {
+      toast.error("Full name must contain 3 names (e.g. First Middle Last)");
+      return;
+    }
+
+    if (!userForm.class) {
+      toast.error("Please select a grade/class");
+      return;
+    }
+
+    // Generate random ID and use same as password
+    const randomId = generateRandomId();
+
     setCreatingUser(true);
     setCreatedUserId(null);
+    setCreatedPassword(null);
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
@@ -257,7 +329,10 @@ const Admin = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify(userForm),
+        body: JSON.stringify({
+          ...userForm,
+          password: randomId, // Password same as ID
+        }),
       });
 
       const result = await response.json();
@@ -265,6 +340,7 @@ const Admin = () => {
         toast.error(result.error);
       } else {
         setCreatedUserId(result.loginId);
+        setCreatedPassword(randomId);
         toast.success(`User created! Login ID: ${result.loginId}`);
         await loadUsers();
       }
@@ -276,6 +352,12 @@ const Admin = () => {
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
+    // Check if user is admin
+    if (adminUserIds.includes(userId)) {
+      toast.error("Cannot delete admin accounts");
+      return;
+    }
+
     if (!confirm(`Delete user "${userName}"? This action cannot be undone.`)) return;
 
     try {
@@ -299,6 +381,74 @@ const Admin = () => {
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to delete user");
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("Delete this message?")) return;
+    
+    const { error } = await supabase.from('contact_messages').delete().eq('id', messageId);
+    if (error) {
+      toast.error("Failed to delete message");
+    } else {
+      toast.success("Message deleted");
+      await loadContactMessages();
+    }
+  };
+
+  const handleReplyMessage = (msg: ContactMessage) => {
+    setReplyMessage(msg);
+    setReplyText('');
+    setShowReplyDialog(true);
+  };
+
+  const sendReply = () => {
+    if (!replyMessage || !replyText.trim()) return;
+    
+    // Open email client with pre-filled reply
+    const subject = encodeURIComponent(`Re: Message from ExamPro`);
+    const body = encodeURIComponent(`Dear ${replyMessage.name},\n\n${replyText}\n\nBest regards,\nExamPro Team`);
+    window.open(`mailto:${replyMessage.email}?subject=${subject}&body=${body}`);
+    
+    toast.success("Email client opened with reply");
+    setShowReplyDialog(false);
+    handleMarkMessageRead(replyMessage.id);
+  };
+
+  const handleCreateTestimonial = async () => {
+    if (!testimonialForm.name || !testimonialForm.content || !testimonialForm.role) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    const avatar = testimonialForm.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+    const { error } = await supabase.from('testimonials').insert({
+      name: testimonialForm.name,
+      role: testimonialForm.role,
+      content: testimonialForm.content,
+      avatar,
+    });
+
+    if (error) {
+      toast.error("Failed to add testimonial");
+    } else {
+      toast.success("Testimonial added!");
+      setShowTestimonialDialog(false);
+      setTestimonialForm({ name: '', role: '', content: '', avatar: '' });
+      await loadTestimonials();
+    }
+  };
+
+  const handleDeleteTestimonial = async (id: string) => {
+    if (!confirm("Delete this testimonial?")) return;
+    
+    const { error } = await supabase.from('testimonials').delete().eq('id', id);
+    if (error) {
+      toast.error("Failed to delete testimonial");
+    } else {
+      toast.success("Testimonial deleted");
+      await loadTestimonials();
     }
   };
 
@@ -430,52 +580,54 @@ const Admin = () => {
     setProcessingPdf(true);
 
     try {
-      // Read PDF as text (basic extraction)
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const text = event.target?.result as string;
-        
-        // For now, we'll use the raw text. In production, you'd use a proper PDF parser
-        const { data: { session } } = await supabase.auth.getSession();
-        const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/pdf-to-exam`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ 
-            pdfText: text,
-            examTitle: file.name.replace('.pdf', ''),
-          }),
-        });
+      // Read PDF as ArrayBuffer and convert to base64
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64 = btoa(binary);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/pdf-to-exam`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ 
+          pdfBase64: base64,
+          examTitle: file.name.replace('.pdf', ''),
+        }),
+      });
 
-        const result = await response.json();
-        
-        if (result.error) {
-          toast.error(result.error);
-        } else if (result.questions && result.questions.length > 0) {
-          setQuestionForms(result.questions.map((q: any) => ({
-            question_text: q.question_text || '',
-            option_a: q.option_a || '',
-            option_b: q.option_b || '',
-            option_c: q.option_c || '',
-            option_d: q.option_d || '',
-            correct_answer: q.correct_answer || 'A',
-            image_url: '',
-            passage_id: '',
-          })));
-          toast.success(`Extracted ${result.questions.length} questions from PDF`);
-          setShowPdfDialog(false);
-          setShowQuestionDialog(true);
-        } else {
-          toast.error("No questions could be extracted from the PDF");
-        }
-        setProcessingPdf(false);
-      };
-      reader.readAsText(file);
+      const result = await response.json();
+      
+      if (result.error) {
+        toast.error(result.error);
+      } else if (result.questions && result.questions.length > 0) {
+        setQuestionForms(result.questions.map((q: any) => ({
+          question_text: q.question_text || '',
+          option_a: q.option_a || '',
+          option_b: q.option_b || '',
+          option_c: q.option_c || '',
+          option_d: q.option_d || '',
+          correct_answer: q.correct_answer || 'A',
+          image_url: '',
+          passage_id: '',
+        })));
+        toast.success(`Extracted ${result.questions.length} questions from PDF`);
+        setShowPdfDialog(false);
+        setShowQuestionDialog(true);
+      } else {
+        toast.error("No questions could be extracted from the PDF");
+      }
     } catch (error: any) {
+      console.error("PDF processing error:", error);
       toast.error("Failed to process PDF");
+    } finally {
       setProcessingPdf(false);
     }
   };
@@ -605,7 +757,7 @@ const Admin = () => {
 
       <div className="container mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-6 mb-6">
           <Card className="glass-card border-primary/30">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Exams</CardTitle>
@@ -644,6 +796,15 @@ const Admin = () => {
               </div>
             </CardContent>
           </Card>
+          <Card className="glass-card border-primary/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Reviews</CardTitle>
+              <Star className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl md:text-3xl font-display gradient-text">{testimonials.length}</div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="exams" className="space-y-6">
@@ -652,6 +813,7 @@ const Admin = () => {
             <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
             <TabsTrigger value="results" className="text-xs sm:text-sm">Results</TabsTrigger>
             <TabsTrigger value="messages" className="text-xs sm:text-sm">Messages</TabsTrigger>
+            <TabsTrigger value="testimonials" className="text-xs sm:text-sm">Reviews</TabsTrigger>
           </TabsList>
 
           {/* Exams Tab */}
@@ -861,106 +1023,79 @@ const Admin = () => {
                                     )}
                                   </div>
                                   <div className="space-y-3">
+                                    {passages.length > 0 && (
+                                      <div>
+                                        <Label className="text-xs">Link to Passage (optional)</Label>
+                                        <Select value={form.passage_id} onValueChange={(v) => updateQuestionForm(index, 'passage_id', v)}>
+                                          <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue placeholder="No passage" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="">No passage</SelectItem>
+                                            {passages.map(p => (
+                                              <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    )}
                                     <div>
-                                      <Label className="text-sm">Question</Label>
-                                      <Textarea
-                                        value={form.question_text}
-                                        onChange={(e) => updateQuestionForm(index, 'question_text', e.target.value)}
-                                        placeholder="Enter question..."
-                                        className="text-sm"
-                                      />
+                                      <Label className="text-xs">Question</Label>
+                                      <Textarea value={form.question_text} onChange={(e) => updateQuestionForm(index, 'question_text', e.target.value)} className="min-h-[60px]" placeholder="Enter question text" />
                                     </div>
-                                    <div>
-                                      <Label className="text-sm">Image (optional)</Label>
-                                      <div className="flex gap-2">
-                                        <Input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={(e) => e.target.files?.[0] && handleImageUpload(index, e.target.files[0])}
-                                          className="text-sm"
-                                        />
-                                      </div>
-                                      {form.image_url && (
-                                        <img src={form.image_url} alt="Question" className="mt-2 max-h-32 rounded" />
-                                      )}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-2">
                                       <div>
-                                        <Label className="text-sm">A</Label>
-                                        <Input
-                                          value={form.option_a}
-                                          onChange={(e) => updateQuestionForm(index, 'option_a', e.target.value)}
-                                          placeholder="Option A"
-                                          className="text-sm"
-                                        />
+                                        <Label className="text-xs">A</Label>
+                                        <Input value={form.option_a} onChange={(e) => updateQuestionForm(index, 'option_a', e.target.value)} placeholder="Option A" />
                                       </div>
                                       <div>
-                                        <Label className="text-sm">B</Label>
-                                        <Input
-                                          value={form.option_b}
-                                          onChange={(e) => updateQuestionForm(index, 'option_b', e.target.value)}
-                                          placeholder="Option B"
-                                          className="text-sm"
-                                        />
+                                        <Label className="text-xs">B</Label>
+                                        <Input value={form.option_b} onChange={(e) => updateQuestionForm(index, 'option_b', e.target.value)} placeholder="Option B" />
                                       </div>
                                       <div>
-                                        <Label className="text-sm">C</Label>
-                                        <Input
-                                          value={form.option_c}
-                                          onChange={(e) => updateQuestionForm(index, 'option_c', e.target.value)}
-                                          placeholder="Option C"
-                                          className="text-sm"
-                                        />
+                                        <Label className="text-xs">C</Label>
+                                        <Input value={form.option_c} onChange={(e) => updateQuestionForm(index, 'option_c', e.target.value)} placeholder="Option C" />
                                       </div>
                                       <div>
-                                        <Label className="text-sm">D</Label>
-                                        <Input
-                                          value={form.option_d}
-                                          onChange={(e) => updateQuestionForm(index, 'option_d', e.target.value)}
-                                          placeholder="Option D"
-                                          className="text-sm"
-                                        />
+                                        <Label className="text-xs">D</Label>
+                                        <Input value={form.option_d} onChange={(e) => updateQuestionForm(index, 'option_d', e.target.value)} placeholder="Option D" />
                                       </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div>
-                                        <Label className="text-sm">Correct Answer</Label>
-                                        <select
-                                          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm"
-                                          value={form.correct_answer}
-                                          onChange={(e) => updateQuestionForm(index, 'correct_answer', e.target.value)}
-                                        >
-                                          <option value="A">A</option>
-                                          <option value="B">B</option>
-                                          <option value="C">C</option>
-                                          <option value="D">D</option>
-                                        </select>
+                                    <div className="flex gap-3">
+                                      <div className="flex-1">
+                                        <Label className="text-xs">Correct</Label>
+                                        <Select value={form.correct_answer} onValueChange={(v) => updateQuestionForm(index, 'correct_answer', v)}>
+                                          <SelectTrigger className="h-8">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="A">A</SelectItem>
+                                            <SelectItem value="B">B</SelectItem>
+                                            <SelectItem value="C">C</SelectItem>
+                                            <SelectItem value="D">D</SelectItem>
+                                          </SelectContent>
+                                        </Select>
                                       </div>
-                                      <div>
-                                        <Label className="text-sm">Link to Passage</Label>
-                                        <select
-                                          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm"
-                                          value={form.passage_id}
-                                          onChange={(e) => updateQuestionForm(index, 'passage_id', e.target.value)}
-                                        >
-                                          <option value="">No Passage</option>
-                                          {passages.map((p) => (
-                                            <option key={p.id} value={p.id}>{p.title}</option>
-                                          ))}
-                                        </select>
+                                      <div className="flex-1">
+                                        <Label className="text-xs">Image</Label>
+                                        <Input type="file" accept="image/*" className="h-8 text-xs" onChange={(e) => {
+                                          const f = e.target.files?.[0];
+                                          if (f) handleImageUpload(index, f);
+                                        }} />
                                       </div>
                                     </div>
+                                    {form.image_url && (
+                                      <img src={form.image_url} alt="Preview" className="h-16 rounded object-cover" />
+                                    )}
                                   </div>
                                 </Card>
                               ))}
                               <div className="flex gap-3">
-                                <Button onClick={addQuestionSlot} variant="outline" className="flex-1">
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add More
+                                <Button variant="outline" onClick={addQuestionSlot} className="flex-1">
+                                  <Plus className="w-4 h-4 mr-2" />Add Another
                                 </Button>
-                                <Button onClick={handleAddQuestions} className="flex-1 btn-glow bg-secondary">
-                                  <Save className="w-4 h-4 mr-2" />
-                                  Save ({questionForms.length})
+                                <Button onClick={handleAddQuestions} className="flex-1 btn-glow bg-primary">
+                                  <Save className="w-4 h-4 mr-2" />Save All
                                 </Button>
                               </div>
                             </div>
@@ -973,29 +1108,23 @@ const Admin = () => {
                       {questions.length === 0 ? (
                         <Card className="glass-card text-center py-8">
                           <CardContent>
-                            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
                             <p className="text-muted-foreground text-sm">No questions yet</p>
                           </CardContent>
                         </Card>
                       ) : (
                         questions.map((question, index) => (
-                          <Card key={question.id} className="glass-card border-secondary/20 p-4">
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm">
-                                  <span className="text-muted-foreground mr-2">Q{index + 1}.</span>
-                                  {question.question_text}
-                                </p>
-                                {question.image_url && (
-                                  <img src={question.image_url} alt="" className="mt-2 max-h-24 rounded" />
-                                )}
-                              </div>
-                              <Button variant="ghost" size="sm" onClick={() => handleDeleteQuestion(question.id)} className="text-destructive shrink-0">
-                                <Trash2 className="w-4 h-4" />
+                          <Card key={question.id} className="glass-card border-primary/20 p-3">
+                            <div className="flex justify-between items-start gap-2 mb-2">
+                              <p className="font-medium text-sm">Q{index + 1}. {question.question_text}</p>
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteQuestion(question.id)} className="text-destructive shrink-0 h-6 w-6 p-0">
+                                <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
-                            <div className="mt-2 space-y-1 text-xs">
-                              {['A', 'B', 'C', 'D'].map((opt) => {
+                            {question.image_url && (
+                              <img src={question.image_url} alt="Question" className="h-16 rounded object-cover mb-2" />
+                            )}
+                            <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                              {['A', 'B', 'C', 'D'].map(opt => {
                                 const key = `option_${opt.toLowerCase()}` as keyof Question;
                                 const isCorrect = question.correct_answer === opt;
                                 return (
@@ -1030,7 +1159,8 @@ const Admin = () => {
                 setShowUserDialog(open);
                 if (!open) {
                   setCreatedUserId(null);
-                  setUserForm({ password: '', full_name: '', phone: '', class: '' });
+                  setCreatedPassword(null);
+                  setUserForm({ full_name: '', phone: '', class: '' });
                 }
               }}>
                 <DialogTrigger asChild>
@@ -1055,21 +1185,24 @@ const Admin = () => {
                         <div className="text-center space-y-3">
                           <p className="text-sm text-muted-foreground">User Login ID</p>
                           <p className="text-3xl font-mono font-bold gradient-text tracking-widest">{createdUserId}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Share this ID with the user. They will use it along with the password to sign in.
+                          <p className="text-sm text-muted-foreground mt-4">Password (same as ID)</p>
+                          <p className="text-2xl font-mono font-bold text-secondary tracking-widest">{createdPassword}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Share these credentials with the user. ID and Password are the same.
                           </p>
                         </div>
                       </Card>
                       <Button onClick={() => {
-                        navigator.clipboard.writeText(createdUserId);
-                        toast.success("ID copied to clipboard!");
+                        navigator.clipboard.writeText(`ID: ${createdUserId}\nPassword: ${createdPassword}`);
+                        toast.success("Credentials copied to clipboard!");
                       }} variant="outline" className="w-full">
-                        Copy ID to Clipboard
+                        Copy Credentials
                       </Button>
                       <Button onClick={() => {
                         setShowUserDialog(false);
                         setCreatedUserId(null);
-                        setUserForm({ password: '', full_name: '', phone: '', class: '' });
+                        setCreatedPassword(null);
+                        setUserForm({ full_name: '', phone: '', class: '' });
                       }} className="w-full btn-glow bg-primary">
                         Done
                       </Button>
@@ -1077,38 +1210,38 @@ const Admin = () => {
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <Label>Full Name *</Label>
+                        <Label>Full Name * (3 names required)</Label>
                         <Input
                           value={userForm.full_name}
                           onChange={(e) => setUserForm({...userForm, full_name: e.target.value})}
-                          placeholder="John Doe"
+                          placeholder="First Middle Last"
                         />
+                        <p className="text-xs text-muted-foreground mt-1">e.g. Mohamed Ahmed Hassan</p>
                       </div>
                       <div>
-                        <Label>Password *</Label>
-                        <Input
-                          type="password"
-                          value={userForm.password}
-                          onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                          placeholder="Min 6 characters"
-                        />
+                        <Label>Grade/Class *</Label>
+                        <Select value={userForm.class} onValueChange={(v) => setUserForm({...userForm, class: v})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select grade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GRADE_OPTIONS.map(g => (
+                              <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label>Phone</Label>
                         <Input
                           value={userForm.phone}
                           onChange={(e) => setUserForm({...userForm, phone: e.target.value})}
-                          placeholder="+1234567890"
+                          placeholder="+201234567890"
                         />
                       </div>
-                      <div>
-                        <Label>Class</Label>
-                        <Input
-                          value={userForm.class}
-                          onChange={(e) => setUserForm({...userForm, class: e.target.value})}
-                          placeholder="e.g. Class A, Grade 10"
-                        />
-                      </div>
+                      <p className="text-xs text-muted-foreground bg-secondary/10 p-2 rounded">
+                        Password will be auto-generated (same as Login ID)
+                      </p>
                       <Button onClick={handleCreateUser} className="w-full btn-glow bg-primary" disabled={creatingUser}>
                         {creatingUser ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                         Create User
@@ -1127,37 +1260,45 @@ const Admin = () => {
                       <tr>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">User ID</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Name</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Class</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Grade</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden lg:table-cell">Phone</th>
                         <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {users.map((u: any) => (
-                        <tr key={u.id} className="hover:bg-primary/5">
-                          <td className="p-3">
-                            <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
-                          </td>
-                          <td className="p-3">
-                            <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
-                            <p className="text-xs text-muted-foreground md:hidden">{u.class || ''}</p>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
-                            <span className="px-2 py-1 rounded-full bg-secondary/20 text-secondary text-xs">{u.class || '-'}</span>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{u.phone || '-'}</td>
-                          <td className="p-3 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteUser(u.id, u.full_name || u.user_id)}
-                              className="text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                      {users.map((u: any) => {
+                        const isAdmin = adminUserIds.includes(u.id);
+                        return (
+                          <tr key={u.id} className="hover:bg-primary/5">
+                            <td className="p-3">
+                              <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
+                              {isAdmin && <span className="ml-2 text-xs bg-secondary/20 text-secondary px-1.5 py-0.5 rounded">Admin</span>}
+                            </td>
+                            <td className="p-3">
+                              <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground md:hidden">{u.class || ''}</p>
+                            </td>
+                            <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
+                              <span className="px-2 py-1 rounded-full bg-secondary/20 text-secondary text-xs">
+                                {GRADE_OPTIONS.find(g => g.value === u.class)?.label || u.class || '-'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{u.phone || '-'}</td>
+                            <td className="p-3 text-right">
+                              {!isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteUser(u.id, u.full_name || u.user_id)}
+                                  className="text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1261,12 +1402,109 @@ const Admin = () => {
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                       <p className="text-sm text-muted-foreground">{msg.message}</p>
-                      {!msg.is_read && (
-                        <Button size="sm" variant="outline" className="mt-3" onClick={() => handleMarkMessageRead(msg.id)}>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Mark as Read
+                      <div className="flex gap-2 mt-3">
+                        <Button size="sm" variant="outline" onClick={() => handleReplyMessage(msg)}>
+                          <Reply className="w-4 h-4 mr-2" />
+                          Reply
                         </Button>
-                      )}
+                        {!msg.is_read && (
+                          <Button size="sm" variant="outline" onClick={() => handleMarkMessageRead(msg.id)}>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Mark Read
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteMessage(msg.id)} className="text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Testimonials Tab */}
+          <TabsContent value="testimonials">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-display flex items-center gap-2">
+                <Star className="w-5 h-5 text-primary" />
+                Testimonials (Homepage Reviews)
+              </h2>
+              <Dialog open={showTestimonialDialog} onOpenChange={setShowTestimonialDialog}>
+                <DialogTrigger asChild>
+                  <Button className="btn-glow bg-primary hover:bg-primary/90" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Review
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="glass-card border-primary/30 max-w-md mx-2">
+                  <DialogHeader>
+                    <DialogTitle className="font-display text-xl">Add Testimonial</DialogTitle>
+                    <DialogDescription>
+                      This review will appear on the homepage
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Name</Label>
+                      <Input
+                        value={testimonialForm.name}
+                        onChange={(e) => setTestimonialForm({...testimonialForm, name: e.target.value})}
+                        placeholder="Ahmed Mohamed"
+                      />
+                    </div>
+                    <div>
+                      <Label>Role/Title</Label>
+                      <Input
+                        value={testimonialForm.role}
+                        onChange={(e) => setTestimonialForm({...testimonialForm, role: e.target.value})}
+                        placeholder="Student - 3 Sec"
+                      />
+                    </div>
+                    <div>
+                      <Label>Review Content</Label>
+                      <Textarea
+                        value={testimonialForm.content}
+                        onChange={(e) => setTestimonialForm({...testimonialForm, content: e.target.value})}
+                        placeholder="Write a positive review..."
+                        rows={3}
+                      />
+                    </div>
+                    <Button onClick={handleCreateTestimonial} className="w-full btn-glow bg-primary">
+                      <Save className="w-4 h-4 mr-2" />
+                      Add Testimonial
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {testimonials.length === 0 ? (
+              <Card className="glass-card text-center py-12">
+                <CardContent>
+                  <Star className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-muted-foreground text-sm">No testimonials yet</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {testimonials.map((t) => (
+                  <Card key={t.id} className="glass-card border-primary/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-display">
+                          {t.avatar}
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-sm">{t.name}</h5>
+                          <p className="text-xs text-muted-foreground">{t.role}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteTestimonial(t.id)} className="text-destructive h-8 w-8 p-0">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground italic">"{t.content}"</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -1293,6 +1531,34 @@ const Admin = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reply Dialog */}
+      <Dialog open={showReplyDialog} onOpenChange={setShowReplyDialog}>
+        <DialogContent className="glass-card border-primary/30 max-w-md mx-2">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Reply to {replyMessage?.name}</DialogTitle>
+            <DialogDescription>{replyMessage?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted/20 p-3 rounded text-sm text-muted-foreground">
+              "{replyMessage?.message}"
+            </div>
+            <div>
+              <Label>Your Reply</Label>
+              <Textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your response..."
+                rows={4}
+              />
+            </div>
+            <Button onClick={sendReply} className="w-full btn-glow bg-primary">
+              <Reply className="w-4 h-4 mr-2" />
+              Open Email Client
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Answers Dialog */}
       <Dialog open={showAnswersDialog} onOpenChange={setShowAnswersDialog}>

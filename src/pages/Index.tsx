@@ -1,11 +1,27 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Brain, Clock, Shield, Target, TrendingUp, Zap, CheckCircle } from "lucide-react";
+import { Brain, Clock, Shield, Target, TrendingUp, Zap, CheckCircle, MessageSquare } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [testimonials, setTestimonials] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTestimonials = async () => {
+      const { data } = await supabase
+        .from('testimonials')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (data) setTestimonials(data);
+    };
+    loadTestimonials();
+  }, []);
 
   const features = [
     {
@@ -40,26 +56,29 @@ const Index = () => {
     },
   ];
 
-  const testimonials = [
+  // Default testimonials if none from database
+  const defaultTestimonials = [
     {
-      name: "Sarah Johnson",
-      role: "Software Engineer",
-      content: "ExamPro has revolutionized how we conduct technical assessments. The platform is intuitive and reliable.",
-      avatar: "SJ"
+      name: "Ahmed Mohamed",
+      role: "Student - 3 Sec",
+      content: "ExamPro has revolutionized how we take exams. The platform is intuitive and reliable.",
+      avatar: "AM"
     },
     {
-      name: "Michael Chen",
-      role: "University Professor",
-      content: "The analytics and reporting features are outstanding. It saves me hours of manual grading.",
-      avatar: "MC"
+      name: "Sara Hassan",
+      role: "Student - 2 Sec",
+      content: "The analytics and instant results are outstanding. It saves so much time.",
+      avatar: "SH"
     },
     {
-      name: "Emily Rodriguez",
-      role: "HR Manager",
-      content: "Perfect for screening candidates. The instant results feature is a game-changer.",
-      avatar: "ER"
+      name: "Omar Ali",
+      role: "Student - 1 Sec",
+      content: "Perfect for practice. The instant results feature is a game-changer.",
+      avatar: "OA"
     },
   ];
+
+  const displayTestimonials = testimonials.length > 0 ? testimonials : defaultTestimonials;
 
   return (
     <div className="min-h-screen animated-bg">
@@ -77,7 +96,8 @@ const Index = () => {
               size="sm"
               className="hover:bg-primary/10 text-xs sm:text-sm"
             >
-              Contact
+              <MessageSquare className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Contact</span>
             </Button>
             <Button 
               onClick={() => navigate('/auth')}
@@ -227,7 +247,7 @@ const Index = () => {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          {testimonials.map((testimonial, index) => (
+          {displayTestimonials.map((testimonial, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, scale: 0.9 }}

@@ -235,6 +235,36 @@ export type Database = {
           },
         ]
       }
+      testimonials: {
+        Row: {
+          avatar: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          role: string
+        }
+        Insert: {
+          avatar?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          role: string
+        }
+        Update: {
+          avatar?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
       user_answers: {
         Row: {
           attempt_id: string
