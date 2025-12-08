@@ -67,6 +67,21 @@ serve(async (req) => {
       });
     }
 
+    // Check if target user is an admin
+    const { data: targetRoleData } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (targetRoleData) {
+      return new Response(JSON.stringify({ error: "Cannot delete admin accounts" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Delete user (this will cascade to profiles, device_registrations, etc.)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 

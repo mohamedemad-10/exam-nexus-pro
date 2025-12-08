@@ -50,10 +50,13 @@ serve(async (req) => {
       });
     }
 
-    const { pdfText, examTitle, examDescription } = await req.json();
+    const { pdfBase64, pdfText, examTitle, examDescription } = await req.json();
 
-    if (!pdfText) {
-      return new Response(JSON.stringify({ error: "PDF text content is required" }), {
+    // Check if we have either base64 or text
+    const textContent = pdfBase64 || pdfText;
+    
+    if (!textContent) {
+      return new Response(JSON.stringify({ error: "PDF content is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -67,9 +70,9 @@ serve(async (req) => {
       });
     }
 
-    console.log("Processing PDF text, length:", pdfText.length);
+    console.log("Processing PDF content, type:", pdfBase64 ? "base64" : "text");
 
-    const systemPrompt = `You are an expert exam creator. Analyze the provided text content and extract or generate multiple-choice questions from it.
+    const systemPrompt = `You are an expert exam creator. Analyze the provided content and extract or generate multiple-choice questions from it.
 
 For each question:
 1. Create a clear, well-formed question
@@ -98,8 +101,10 @@ Important:
 - For passage-based questions, include the relevant passage text
 - Ensure all questions have exactly 4 options
 - The correct_answer must be A, B, C, or D
-- Return ONLY the JSON object, no other text`;
+- Return ONLY the JSON object, no other text
+- If the content appears to be binary/encoded, try to extract any visible text patterns`;
 
+    // Use gemini-2.5-flash for document analysis
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -110,7 +115,12 @@ Important:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Extract questions from this content:\n\n${pdfText.substring(0, 50000)}` }
+          { 
+            role: "user", 
+            content: pdfBase64 
+              ? `This is a PDF document encoded in base64. Please analyze it and extract exam questions:\n\n${textContent.substring(0, 100000)}`
+              : `Extract questions from this content:\n\n${textContent.substring(0, 50000)}`
+          }
         ],
       }),
     });
@@ -148,7 +158,7 @@ Important:
       });
     }
 
-    console.log("AI response received");
+    console.log("AI response received, length:", aiContent.length);
 
     // Parse the JSON from AI response
     let parsedQuestions;
@@ -162,8 +172,8 @@ Important:
       }
     } catch (parseError) {
       console.error("Error parsing AI response:", parseError);
-      console.error("AI content:", aiContent.substring(0, 500));
-      return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
+      console.error("AI content preview:", aiContent.substring(0, 500));
+      return new Response(JSON.stringify({ error: "Failed to parse AI response. Try with a different PDF." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

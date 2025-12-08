@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase, signOut, checkIsAdmin } from "@/lib/supabase";
-import { Brain, Clock, Target, TrendingUp, LogOut, Shield, BookOpen } from "lucide-react";
+import { Brain, Clock, Target, TrendingUp, LogOut, Shield, BookOpen, MessageSquare } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Exam = Database['public']['Tables']['exams']['Row'];
@@ -112,6 +112,15 @@ const Dashboard = () => {
             <h1 className="text-lg md:text-2xl font-display gradient-text">ExamPro</h1>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            <Button
+              onClick={() => navigate('/contact')}
+              variant="ghost"
+              size="sm"
+              className="hover:bg-primary/10"
+            >
+              <MessageSquare className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Contact</span>
+            </Button>
             {isAdmin && (
               <Button
                 onClick={() => navigate('/admin')}
@@ -148,7 +157,18 @@ const Dashboard = () => {
               {profile?.full_name || user?.email?.split('@')[0]}
             </span>!
           </h2>
-          <p className="text-sm md:text-base text-muted-foreground">Choose an exam to start testing your knowledge</p>
+          <p className="text-sm md:text-base text-muted-foreground">
+            {profile?.class && (
+              <span className="inline-block px-2 py-0.5 bg-secondary/20 text-secondary rounded mr-2 text-xs">
+                {profile.class === '3prp' ? '3 Prep' : 
+                 profile.class === '1sec' ? '1 Sec' :
+                 profile.class === '2sec' ? '2 Sec' :
+                 profile.class === '3sec' ? '3 Sec' :
+                 profile.class === 'general' ? 'General' : profile.class}
+              </span>
+            )}
+            Choose an exam to start testing your knowledge
+          </p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
