@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Database } from "@/integrations/supabase/types";
 
 type Question = Database['public']['Tables']['questions']['Row'];
@@ -212,29 +213,30 @@ const ExamPage = () => {
   }
 
   return (
-    <div className="min-h-screen animated-bg pb-20">
+    <div className="min-h-screen animated-bg flex flex-col">
       {/* Header */}
-      <header className="glass-card border-b border-primary/20 sticky top-0 z-50 backdrop-blur-xl">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <header className="glass-card border-b border-primary/20 sticky top-0 z-50 backdrop-blur-xl shrink-0">
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex justify-between items-center gap-2">
             <div className="flex-1 min-w-0">
-              <h1 className="text-base sm:text-xl font-display truncate">{exam?.title}</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h1 className="text-sm sm:text-lg font-display truncate">{exam?.title}</h1>
+              <p className="text-xs text-muted-foreground">
                 Q {currentQuestionIndex + 1}/{questions.length}
               </p>
             </div>
-            <div className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg shrink-0 ${
+            <div className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg shrink-0 ${
               timeLeft < 60 ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
             }`}>
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="font-display text-sm sm:text-lg font-bold">{formatTime(timeLeft)}</span>
+              <Clock className="w-4 h-4" />
+              <span className="font-display text-sm sm:text-base font-bold">{formatTime(timeLeft)}</span>
             </div>
           </div>
-          <Progress value={progress} className="mt-3 sm:mt-4 h-1.5 sm:h-2" />
+          <Progress value={progress} className="mt-2 h-1.5" />
         </div>
       </header>
 
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
+      {/* Main Content - Horizontal Layout on Desktop */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestionIndex}
@@ -242,109 +244,119 @@ const ExamPage = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 overflow-hidden"
           >
-            {/* Passage Display */}
+            {/* Passage Display - Left Side on Desktop */}
             {currentPassage && (
-              <Card className="glass-card border-secondary/30 mb-4">
-                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
-                  <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
-                    {currentPassage.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-                  <div className="prose prose-sm max-w-none text-muted-foreground text-sm sm:text-base leading-relaxed max-h-48 sm:max-h-64 overflow-y-auto">
-                    {currentPassage.content}
-                  </div>
-                  {currentPassage.image_url && (
-                    <img 
-                      src={currentPassage.image_url} 
-                      alt="Passage illustration" 
-                      className="mt-4 max-h-32 sm:max-h-48 rounded-lg object-contain mx-auto"
-                    />
-                  )}
-                </CardContent>
-              </Card>
+              <div className="lg:w-1/2 lg:max-w-[50%] shrink-0">
+                <Card className="glass-card border-secondary/30 h-full flex flex-col">
+                  <CardHeader className="p-3 sm:p-4 pb-2 shrink-0">
+                    <CardTitle className="text-sm sm:text-base font-display flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-secondary shrink-0" />
+                      <span className="truncate">{currentPassage.title}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-4 pt-0 flex-1 overflow-hidden">
+                    <ScrollArea className="h-[200px] sm:h-[250px] lg:h-[calc(100vh-280px)]">
+                      <div className="prose prose-sm max-w-none text-muted-foreground text-xs sm:text-sm leading-relaxed pr-4">
+                        {currentPassage.content.split('\n').map((paragraph, idx) => (
+                          <p key={idx} className="mb-3">{paragraph}</p>
+                        ))}
+                      </div>
+                      {currentPassage.image_url && (
+                        <img 
+                          src={currentPassage.image_url} 
+                          alt="Passage illustration" 
+                          className="mt-4 max-h-32 sm:max-h-48 rounded-lg object-contain mx-auto"
+                        />
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
-            {/* Question Card */}
-            <Card className="glass-card border-primary/30">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-lg sm:text-2xl font-display leading-relaxed">
-                  {currentQuestion?.question_text}
-                </CardTitle>
-                {currentQuestion?.image_url && (
-                  <img 
-                    src={currentQuestion.image_url} 
-                    alt="Question" 
-                    className="mt-4 max-h-48 sm:max-h-64 rounded-lg object-contain mx-auto"
-                  />
+            {/* Question Card - Right Side on Desktop */}
+            <div className={`flex-1 flex flex-col min-w-0 ${currentPassage ? '' : 'max-w-4xl mx-auto w-full'}`}>
+              <Card className="glass-card border-primary/30 flex-1 flex flex-col overflow-hidden">
+                <CardHeader className="p-3 sm:p-4 shrink-0">
+                  <CardTitle className="text-base sm:text-xl font-display leading-relaxed">
+                    {currentQuestion?.question_text}
+                  </CardTitle>
+                  {currentQuestion?.image_url && (
+                    <img 
+                      src={currentQuestion.image_url} 
+                      alt="Question" 
+                      className="mt-3 max-h-32 sm:max-h-48 rounded-lg object-contain mx-auto"
+                    />
+                  )}
+                </CardHeader>
+                <CardContent className="flex-1 overflow-auto p-3 sm:p-4 pt-0">
+                  <div className="space-y-2 sm:space-y-3">
+                    {['A', 'B', 'C', 'D'].map((option) => {
+                      const optionKey = `option_${option.toLowerCase()}` as keyof Question;
+                      const optionText = currentQuestion?.[optionKey] as string;
+                      const isSelected = answers[currentQuestion?.id] === option;
+
+                      return (
+                        <motion.div
+                          key={option}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                        >
+                          <Button
+                            variant={isSelected ? "default" : "outline"}
+                            className={`w-full justify-start text-left h-auto py-2.5 sm:py-3 px-3 sm:px-4 ${
+                              isSelected 
+                                ? 'btn-glow bg-primary hover:bg-primary/90 border-primary' 
+                                : 'border-primary/30 hover:border-primary/50'
+                            }`}
+                            onClick={() => handleAnswerSelect(option)}
+                          >
+                            <span className="font-display text-sm sm:text-base mr-2 sm:mr-3">{option}.</span>
+                            <span className="text-xs sm:text-sm">{optionText}</span>
+                          </Button>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-3 sm:mt-4 gap-2 shrink-0">
+                <Button
+                  onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                  disabled={currentQuestionIndex === 0}
+                  variant="outline"
+                  size="sm"
+                  className="border-primary/30 px-3 sm:px-4"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Previous</span>
+                </Button>
+
+                {currentQuestionIndex === questions.length - 1 ? (
+                  <Button
+                    onClick={() => setShowSubmitDialog(true)}
+                    className="btn-glow bg-secondary hover:bg-secondary/90 px-4 sm:px-6"
+                    size="sm"
+                    disabled={submitting}
+                  >
+                    <Send className="w-4 h-4" />
+                    <span className="ml-1">Submit</span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                    className="btn-glow bg-primary hover:bg-primary/90 px-3 sm:px-4"
+                    size="sm"
+                  >
+                    <span className="hidden sm:inline mr-1">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
                 )}
-              </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
-                {['A', 'B', 'C', 'D'].map((option) => {
-                  const optionKey = `option_${option.toLowerCase()}` as keyof Question;
-                  const optionText = currentQuestion?.[optionKey] as string;
-                  const isSelected = answers[currentQuestion?.id] === option;
-
-                  return (
-                    <motion.div
-                      key={option}
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
-                    >
-                      <Button
-                        variant={isSelected ? "default" : "outline"}
-                        className={`w-full justify-start text-left h-auto py-3 sm:py-4 px-4 sm:px-6 ${
-                          isSelected 
-                            ? 'btn-glow bg-primary hover:bg-primary/90 border-primary' 
-                            : 'border-primary/30 hover:border-primary/50'
-                        }`}
-                        onClick={() => handleAnswerSelect(option)}
-                      >
-                        <span className="font-display text-base sm:text-lg mr-3 sm:mr-4">{option}.</span>
-                        <span className="text-sm sm:text-base">{optionText}</span>
-                      </Button>
-                    </motion.div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Navigation */}
-            <div className="flex justify-between mt-4 sm:mt-8 gap-3">
-              <Button
-                onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-                disabled={currentQuestionIndex === 0}
-                variant="outline"
-                size="sm"
-                className="border-primary/30 px-3 sm:px-4"
-              >
-                <ChevronLeft className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Previous</span>
-              </Button>
-
-              {currentQuestionIndex === questions.length - 1 ? (
-                <Button
-                  onClick={() => setShowSubmitDialog(true)}
-                  className="btn-glow bg-secondary hover:bg-secondary/90 px-4 sm:px-6"
-                  size="sm"
-                  disabled={submitting}
-                >
-                  <Send className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden xs:inline">Submit</span>
-                  <span className="xs:hidden">Submit</span>
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                  className="btn-glow bg-primary hover:bg-primary/90 px-3 sm:px-4"
-                  size="sm"
-                >
-                  <span className="hidden sm:inline">Next</span>
-                  <ChevronRight className="w-4 h-4 sm:ml-2" />
-                </Button>
-              )}
+              </div>
             </div>
           </motion.div>
         </AnimatePresence>
@@ -352,20 +364,20 @@ const ExamPage = () => {
 
       {/* Submit Confirmation Dialog */}
       <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <AlertDialogContent className="glass-card border-primary/30">
+        <AlertDialogContent className="glass-card border-primary/30 max-w-[90vw] sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display text-2xl">Submit Exam?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="font-display text-xl sm:text-2xl">Submit Exam?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               You have answered {Object.keys(answers).length} out of {questions.length} questions.
               Are you sure you want to submit? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel disabled={submitting} className="w-full sm:w-auto">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSubmit}
               disabled={submitting}
-              className="btn-glow bg-primary hover:bg-primary/90"
+              className="btn-glow bg-primary hover:bg-primary/90 w-full sm:w-auto"
             >
               {submitting ? 'Submitting...' : 'Submit'}
             </AlertDialogAction>
