@@ -255,7 +255,17 @@ const Dashboard = () => {
                 >
                   <Card className="glass-card border-primary/20 hover:border-primary/50 transition-all hover:shadow-glow-cyan">
                     <CardHeader>
-                      <CardTitle className="font-display">{exam.title}</CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="font-display">{exam.title}</CardTitle>
+                        {(exam as any).grade && (exam as any).grade !== 'general' && (
+                          <span className="px-2 py-0.5 text-xs bg-secondary/20 text-secondary rounded">
+                            {(exam as any).grade === '3prp' ? '3 Prep' : 
+                             (exam as any).grade === '1sec' ? '1 Sec' :
+                             (exam as any).grade === '2sec' ? '2 Sec' :
+                             (exam as any).grade === '3sec' ? '3 Sec' : (exam as any).grade}
+                          </span>
+                        )}
+                      </div>
                       <CardDescription className="line-clamp-2">{exam.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
