@@ -341,8 +341,8 @@ const Admin = () => {
         toast.error(result.error);
       } else {
         setCreatedUserId(result.loginId);
-        setCreatedPassword(randomId);
-        toast.success(`User created! Login ID: ${result.loginId}`);
+        setCreatedPassword(result.loginId); // Password is same as ID
+        toast.success(`User created! ID: ${result.loginId}`);
         await loadUsers();
       }
     } catch (error: any) {
