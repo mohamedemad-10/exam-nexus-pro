@@ -105,6 +105,7 @@ const Admin = () => {
     description: '',
     duration_minutes: 60,
     passing_score: 70,
+    grade: 'general',
   });
 
   const [userForm, setUserForm] = useState({
@@ -466,7 +467,7 @@ const Admin = () => {
       } else {
         toast.success("Exam updated successfully");
         setShowExamDialog(false);
-        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70 });
+        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general' });
         setEditingExam(null);
         await loadExams();
       }
@@ -480,7 +481,7 @@ const Admin = () => {
       } else {
         toast.success("Exam created successfully");
         setShowExamDialog(false);
-        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70 });
+        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general' });
         await loadExams();
       }
     }
@@ -493,6 +494,7 @@ const Admin = () => {
       description: exam.description || '',
       duration_minutes: exam.duration_minutes,
       passing_score: exam.passing_score,
+      grade: (exam as any).grade || 'general',
     });
     setShowExamDialog(true);
   };
@@ -526,7 +528,8 @@ const Admin = () => {
     const { error } = await supabase.from('questions').insert(questionsToInsert);
 
     if (error) {
-      toast.error("Failed to add questions");
+      console.error("Error adding questions:", error);
+      toast.error("Failed to add questions: " + error.message);
     } else {
       toast.success(`${validQuestions.length} question(s) added successfully`);
       setShowQuestionDialog(false);
@@ -827,7 +830,7 @@ const Admin = () => {
                     setShowExamDialog(open);
                     if (!open) {
                       setEditingExam(null);
-                      setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70 });
+                      setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general' });
                     }
                   }}>
                     <DialogTrigger asChild>
@@ -877,6 +880,19 @@ const Admin = () => {
                             />
                           </div>
                         </div>
+                        <div>
+                          <Label>Grade</Label>
+                          <Select value={examForm.grade} onValueChange={(v) => setExamForm({...examForm, grade: v})}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select grade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GRADE_OPTIONS.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <Button onClick={handleCreateExam} className="w-full btn-glow bg-primary">
                           <Save className="w-4 h-4 mr-2" />
                           {editingExam ? 'Update' : 'Create'}
@@ -917,6 +933,9 @@ const Admin = () => {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                           <span><Clock className="w-3 h-3 inline mr-1" />{exam.duration_minutes}m</span>
                           <span>Pass: {exam.passing_score}%</span>
+                          <span className="px-1.5 py-0.5 bg-secondary/20 text-secondary rounded">
+                            {GRADE_OPTIONS.find(g => g.value === (exam as any).grade)?.label || 'General'}
+                          </span>
                         </div>
                       </CardHeader>
                     </Card>
@@ -1026,12 +1045,12 @@ const Admin = () => {
                                     {passages.length > 0 && (
                                       <div>
                                         <Label className="text-xs">Link to Passage (optional)</Label>
-                                        <Select value={form.passage_id} onValueChange={(v) => updateQuestionForm(index, 'passage_id', v)}>
+                                        <Select value={form.passage_id || "none"} onValueChange={(v) => updateQuestionForm(index, 'passage_id', v === "none" ? "" : v)}>
                                           <SelectTrigger className="h-8 text-xs">
                                             <SelectValue placeholder="No passage" />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="">No passage</SelectItem>
+                                            <SelectItem value="none">No passage</SelectItem>
                                             {passages.map(p => (
                                               <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
                                             ))}

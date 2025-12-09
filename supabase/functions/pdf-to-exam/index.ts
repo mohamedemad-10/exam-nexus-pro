@@ -50,12 +50,9 @@ serve(async (req) => {
       });
     }
 
-    const { pdfBase64, pdfText, examTitle, examDescription } = await req.json();
+    const { pdfBase64, examTitle } = await req.json();
 
-    // Check if we have either base64 or text
-    const textContent = pdfBase64 || pdfText;
-    
-    if (!textContent) {
+    if (!pdfBase64) {
       return new Response(JSON.stringify({ error: "PDF content is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -70,15 +67,36 @@ serve(async (req) => {
       });
     }
 
-    console.log("Processing PDF content, type:", pdfBase64 ? "base64" : "text");
+    console.log("Processing PDF, base64 length:", pdfBase64.length);
 
-    const systemPrompt = `You are an expert exam creator. Analyze the provided content and extract or generate multiple-choice questions from it.
+    // Use Gemini with inline_data for PDF
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "file",
+                file: {
+                  filename: "exam.pdf",
+                  file_data: `data:application/pdf;base64,${pdfBase64}`
+                }
+              },
+              {
+                type: "text",
+                text: `You are an expert exam creator. Analyze this PDF document and extract or generate multiple-choice questions from it.
 
 For each question:
 1. Create a clear, well-formed question
 2. Provide exactly 4 options (A, B, C, D)
 3. Identify the correct answer
-4. If the text contains passages or reading comprehension sections, group related questions together
 
 Return your response as a valid JSON object with this exact structure:
 {
@@ -89,8 +107,7 @@ Return your response as a valid JSON object with this exact structure:
       "option_b": "Second option", 
       "option_c": "Third option",
       "option_d": "Fourth option",
-      "correct_answer": "A",
-      "passage": "Optional passage text if this is a reading comprehension question"
+      "correct_answer": "A"
     }
   ]
 }
@@ -98,28 +115,11 @@ Return your response as a valid JSON object with this exact structure:
 Important:
 - Extract as many relevant questions as possible from the content
 - For math questions, format them clearly
-- For passage-based questions, include the relevant passage text
 - Ensure all questions have exactly 4 options
 - The correct_answer must be A, B, C, or D
-- Return ONLY the JSON object, no other text
-- If the content appears to be binary/encoded, try to extract any visible text patterns`;
-
-    // Use gemini-2.5-flash for document analysis
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { 
-            role: "user", 
-            content: pdfBase64 
-              ? `This is a PDF document encoded in base64. Please analyze it and extract exam questions:\n\n${textContent.substring(0, 100000)}`
-              : `Extract questions from this content:\n\n${textContent.substring(0, 50000)}`
+- Return ONLY the JSON object, no other text`
+              }
+            ]
           }
         ],
       }),
@@ -142,7 +142,7 @@ Important:
         });
       }
       
-      return new Response(JSON.stringify({ error: "AI processing failed" }), {
+      return new Response(JSON.stringify({ error: "AI processing failed: " + errorText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -152,6 +152,7 @@ Important:
     const aiContent = aiData.choices?.[0]?.message?.content;
 
     if (!aiContent) {
+      console.error("No AI content received");
       return new Response(JSON.stringify({ error: "No response from AI" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -184,8 +185,7 @@ Important:
     return new Response(JSON.stringify({ 
       success: true, 
       questions: parsedQuestions.questions || [],
-      suggestedTitle: examTitle || "Extracted Exam",
-      suggestedDescription: examDescription || "Questions extracted from PDF"
+      suggestedTitle: examTitle || "Extracted Exam"
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

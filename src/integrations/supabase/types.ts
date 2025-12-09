@@ -71,6 +71,7 @@ export type Database = {
           created_by: string
           description: string | null
           duration_minutes: number
+          grade: string | null
           id: string
           is_active: boolean
           passing_score: number
@@ -82,6 +83,7 @@ export type Database = {
           created_by: string
           description?: string | null
           duration_minutes?: number
+          grade?: string | null
           id?: string
           is_active?: boolean
           passing_score?: number
@@ -93,6 +95,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           duration_minutes?: number
+          grade?: string | null
           id?: string
           is_active?: boolean
           passing_score?: number
