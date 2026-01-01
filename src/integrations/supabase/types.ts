@@ -75,6 +75,7 @@ export type Database = {
           id: string
           is_active: boolean
           passing_score: number
+          subject: string | null
           title: string
           updated_at: string
         }
@@ -87,6 +88,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           passing_score?: number
+          subject?: string | null
           title: string
           updated_at?: string
         }
@@ -99,8 +101,33 @@ export type Database = {
           id?: string
           is_active?: boolean
           passing_score?: number
+          subject?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      login_history: {
+        Row: {
+          device_fingerprint: string | null
+          id: string
+          ip_address: string | null
+          login_at: string
+          user_id: string
+        }
+        Insert: {
+          device_fingerprint?: string | null
+          id?: string
+          ip_address?: string | null
+          login_at?: string
+          user_id: string
+        }
+        Update: {
+          device_fingerprint?: string | null
+          id?: string
+          ip_address?: string | null
+          login_at?: string
+          user_id?: string
         }
         Relationships: []
       }
