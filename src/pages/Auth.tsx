@@ -8,13 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { getStoredFingerprint } from "@/lib/deviceFingerprint";
-import { Brain, Loader2, User, Lock, ArrowLeft } from "lucide-react";
+import { Brain, Loader2, User, ArrowLeft } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [loginId, setLoginId] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => {
     const checkUser = async () => {
@@ -32,12 +31,13 @@ const Auth = () => {
 
     try {
       const deviceFingerprint = getStoredFingerprint();
+      const uppercaseId = loginId.toUpperCase().trim();
       
-      // First, find the user by their user_id to get the email
+      // Find the user by their user_id to get the email
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id, email, user_id")
-        .eq("user_id", loginId.toUpperCase())
+        .eq("user_id", uppercaseId)
         .maybeSingle();
 
       if (profileError || !profile) {
@@ -54,13 +54,14 @@ const Auth = () => {
         .maybeSingle();
 
       // Sign in with the email associated with the user_id
+      // Password is same as user_id
       const { data, error } = await supabase.auth.signInWithPassword({
         email: profile.email,
-        password: loginPassword,
+        password: uppercaseId,
       });
       
       if (error) {
-        toast.error("Invalid credentials");
+        toast.error("Invalid User ID");
         setLoading(false);
         return;
       }
@@ -86,6 +87,12 @@ const Auth = () => {
           device_fingerprint: deviceFingerprint,
         });
       }
+
+      // Record login history
+      await supabase.from("login_history").insert({
+        user_id: data.user.id,
+        device_fingerprint: deviceFingerprint,
+      });
 
       toast.success("Welcome back!");
       navigate('/dashboard');
@@ -137,7 +144,7 @@ const Auth = () => {
             <CardHeader className="p-4 sm:p-6 text-center">
               <CardTitle className="font-display text-lg sm:text-xl gradient-text">Sign In</CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Enter your User ID and password
+                Enter your User ID to continue
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
@@ -154,29 +161,18 @@ const Auth = () => {
                     value={loginId}
                     onChange={(e) => setLoginId(e.target.value.toUpperCase())}
                     required
-                    className="bg-background/50 border-border/50 focus:border-primary h-10 sm:h-11 text-center font-mono text-base sm:text-lg tracking-widest uppercase"
+                    className="bg-background/50 border-border/50 focus:border-primary h-12 sm:h-14 text-center font-mono text-lg sm:text-xl tracking-widest uppercase"
                     maxLength={8}
+                    autoComplete="off"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password" className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                    <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-secondary" />
-                    Password
-                  </Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                    className="bg-background/50 border-border/50 focus:border-primary h-10 sm:h-11"
-                  />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Your ID was provided by the administrator
+                  </p>
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full btn-glow bg-gradient-to-r from-primary to-secondary hover:opacity-90 h-10 sm:h-11 text-sm sm:text-base font-semibold"
-                  disabled={loading}
+                  className="w-full btn-glow bg-gradient-to-r from-primary to-secondary hover:opacity-90 h-11 sm:h-12 text-sm sm:text-base font-semibold"
+                  disabled={loading || loginId.length < 8}
                 >
                   {loading ? (
                     <>
@@ -197,7 +193,11 @@ const Auth = () => {
             transition={{ delay: 0.5 }}
             className="text-center text-xs sm:text-sm text-muted-foreground mt-4 sm:mt-6 px-4"
           >
-            Don't have an account? Contact your administrator to get your User ID and password.
+            Don't have an account?{" "}
+            <Button variant="link" className="p-0 h-auto text-primary" onClick={() => navigate('/contact')}>
+              Contact us
+            </Button>{" "}
+            to request your User ID.
           </motion.p>
         </motion.div>
       </div>

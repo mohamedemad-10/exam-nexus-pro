@@ -69,7 +69,7 @@ serve(async (req) => {
 
     console.log("Processing PDF, base64 length:", pdfBase64.length);
 
-    // Use Gemini with inline_data for PDF
+    // Use Gemini with inline_data for PDF - enhanced prompt for better extraction
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -91,33 +91,35 @@ serve(async (req) => {
               },
               {
                 type: "text",
-                text: `You are an expert exam creator. Analyze this PDF document and extract or generate multiple-choice questions from it.
+                text: `You are an expert exam creator. Analyze this PDF document and extract ALL questions from it.
 
-For each question:
-1. Create a clear, well-formed question
-2. Provide exactly 4 options (A, B, C, D)
-3. Identify the correct answer
+IMPORTANT RULES:
+1. Extract EVERY question you find in the document
+2. If there's a reading passage, include it in your response as a "passage" field
+3. Handle different question types:
+   - For 4-option questions (A, B, C, D): use all four options
+   - For 2-option questions: use only option_a and option_b, leave option_c and option_d as empty strings ""
+   - For True/False questions: option_a = "True", option_b = "False", option_c = "", option_d = ""
+4. The correct_answer must be "A", "B", "C", or "D" based on which option is correct
+5. For True/False: correct_answer = "A" for True, "B" for False
 
-Return your response as a valid JSON object with this exact structure:
+Return ONLY a valid JSON object with this exact structure:
 {
+  "passage": "If there's a reading passage, put the full text here. Otherwise use empty string",
+  "passage_title": "Title of the passage if any, otherwise empty string",
   "questions": [
     {
-      "question_text": "The question here",
+      "question_text": "The full question text",
       "option_a": "First option",
       "option_b": "Second option", 
-      "option_c": "Third option",
-      "option_d": "Fourth option",
+      "option_c": "Third option or empty string if only 2 options",
+      "option_d": "Fourth option or empty string if only 2 options",
       "correct_answer": "A"
     }
   ]
 }
 
-Important:
-- Extract as many relevant questions as possible from the content
-- For math questions, format them clearly
-- Ensure all questions have exactly 4 options
-- The correct_answer must be A, B, C, or D
-- Return ONLY the JSON object, no other text`
+Extract as many questions as possible. Return ONLY the JSON, no other text.`
               }
             ]
           }
@@ -162,12 +164,12 @@ Important:
     console.log("AI response received, length:", aiContent.length);
 
     // Parse the JSON from AI response
-    let parsedQuestions;
+    let parsedData;
     try {
       // Try to extract JSON from the response
       const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        parsedQuestions = JSON.parse(jsonMatch[0]);
+        parsedData = JSON.parse(jsonMatch[0]);
       } else {
         throw new Error("No JSON found in response");
       }
@@ -180,11 +182,13 @@ Important:
       });
     }
 
-    console.log("Extracted questions count:", parsedQuestions.questions?.length);
+    console.log("Extracted questions count:", parsedData.questions?.length);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      questions: parsedQuestions.questions || [],
+      questions: parsedData.questions || [],
+      passage: parsedData.passage || "",
+      passage_title: parsedData.passage_title || "",
       suggestedTitle: examTitle || "Extracted Exam"
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

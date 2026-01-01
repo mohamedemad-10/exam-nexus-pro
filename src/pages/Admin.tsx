@@ -13,8 +13,10 @@ import { supabase, checkIsAdmin } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
   Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw, Eye, 
-  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star
+  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star, Download
 } from "lucide-react";
+import { UserDetailsDialog } from "@/components/UserDetailsDialog";
+import { exportResultsToCSV, formatTimeForExport, formatDateForExport } from "@/lib/exportResults";
 import {
   Dialog,
   DialogContent,
@@ -95,6 +97,8 @@ const Admin = () => {
   const [creatingUser, setCreatingUser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [adminUserIds, setAdminUserIds] = useState<string[]>([]);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [showUserDetailsDialog, setShowUserDetailsDialog] = useState(false);
 
   const [passageForm, setPassageForm] = useState({
     title: '',
@@ -1285,15 +1289,15 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {users.map((u: any) => {
-                        const isAdmin = adminUserIds.includes(u.id);
-                        return (
-                          <tr key={u.id} className="hover:bg-primary/5">
-                            <td className="p-3">
-                              <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
-                              {isAdmin && <span className="ml-2 text-xs bg-secondary/20 text-secondary px-1.5 py-0.5 rounded">Admin</span>}
-                            </td>
-                            <td className="p-3">
+                                      {users.map((u: any) => {
+                                        const isAdmin = adminUserIds.includes(u.id);
+                                        return (
+                                          <tr key={u.id} className="hover:bg-primary/5 cursor-pointer" onClick={() => { setSelectedUser(u); setShowUserDetailsDialog(true); }}>
+                                            <td className="p-3">
+                                              <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
+                                              {isAdmin && <span className="ml-2 text-xs bg-secondary/20 text-secondary px-1.5 py-0.5 rounded">Admin</span>}
+                                            </td>
+                                            <td className="p-3">
                               <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
                               <p className="text-xs text-muted-foreground md:hidden">{u.class || ''}</p>
                             </td>
@@ -1626,6 +1630,12 @@ const Admin = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* User Details Dialog */}
+      <UserDetailsDialog
+        user={selectedUser}
+        open={showUserDetailsDialog}
+        onOpenChange={setShowUserDetailsDialog}
+      />
     </div>
   );
 };
