@@ -13,8 +13,9 @@ import { supabase, checkIsAdmin } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
   Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw, Eye, 
-  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star, Download
+  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star, Download, Sparkles
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { UserDetailsDialog } from "@/components/UserDetailsDialog";
 import { exportResultsToCSV, formatTimeForExport, formatDateForExport } from "@/lib/exportResults";
 import {
@@ -55,6 +56,24 @@ const GRADE_OPTIONS = [
   { value: '2sec', label: '2 Sec' },
   { value: '3sec', label: '3 Sec' },
   { value: 'general', label: 'General' },
+];
+
+const SUBJECT_OPTIONS = [
+  { value: 'math', label: 'Math' },
+  { value: 'physics', label: 'Physics' },
+  { value: 'chemistry', label: 'Chemistry' },
+  { value: 'biology', label: 'Biology' },
+  { value: 'english', label: 'English' },
+  { value: 'arabic', label: 'Arabic' },
+  { value: 'history', label: 'History' },
+  { value: 'geography', label: 'Geography' },
+  { value: 'general', label: 'General' },
+];
+
+const QUESTION_TYPE_OPTIONS = [
+  { value: 'four_choice', label: '4 Choices (A/B/C/D)' },
+  { value: 'two_choice', label: '2 Choices (A/B)' },
+  { value: 'true_false', label: 'True/False' },
 ];
 
 // Generate random 8-char ID
@@ -110,6 +129,18 @@ const Admin = () => {
     duration_minutes: 60,
     passing_score: 70,
     grade: 'general',
+    subject: 'general',
+  });
+
+  const [showAiDialog, setShowAiDialog] = useState(false);
+  const [generatingExam, setGeneratingExam] = useState(false);
+  const [aiForm, setAiForm] = useState({
+    topic: '',
+    subject: 'general',
+    grade: 'general',
+    questionCount: 10,
+    questionTypes: ['four_choice'] as string[],
+    includePassage: false,
   });
 
   const [userForm, setUserForm] = useState({
@@ -139,6 +170,7 @@ const Admin = () => {
     correct_answer: 'A',
     image_url: '',
     passage_id: '',
+    question_type: 'four_choice' as 'four_choice' | 'two_choice' | 'true_false',
   }]);
 
   useEffect(() => {
@@ -471,7 +503,7 @@ const Admin = () => {
       } else {
         toast.success("Exam updated successfully");
         setShowExamDialog(false);
-        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general' });
+        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general', subject: 'general' });
         setEditingExam(null);
         await loadExams();
       }
@@ -485,7 +517,7 @@ const Admin = () => {
       } else {
         toast.success("Exam created successfully");
         setShowExamDialog(false);
-        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general' });
+        setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general', subject: 'general' });
         await loadExams();
       }
     }
@@ -499,6 +531,7 @@ const Admin = () => {
       duration_minutes: exam.duration_minutes,
       passing_score: exam.passing_score,
       grade: (exam as any).grade || 'general',
+      subject: exam.subject || 'general',
     });
     setShowExamDialog(true);
   };
@@ -506,10 +539,12 @@ const Admin = () => {
   const handleAddQuestions = async () => {
     if (!selectedExam) return;
 
-    const validQuestions = questionForms.filter(q => 
-      q.question_text.trim() && q.option_a.trim() && q.option_b.trim() && 
-      q.option_c.trim() && q.option_d.trim()
-    );
+    // Validate based on question type
+    const validQuestions = questionForms.filter(q => {
+      if (!q.question_text.trim() || !q.option_a.trim() || !q.option_b.trim()) return false;
+      if (q.question_type === 'four_choice' && (!q.option_c.trim() || !q.option_d.trim())) return false;
+      return true;
+    });
 
     if (validQuestions.length === 0) {
       toast.error("Please fill in at least one complete question");
@@ -518,10 +553,10 @@ const Admin = () => {
 
     const questionsToInsert = validQuestions.map((q, index) => ({
       question_text: q.question_text,
-      option_a: q.option_a,
-      option_b: q.option_b,
-      option_c: q.option_c,
-      option_d: q.option_d,
+      option_a: q.question_type === 'true_false' ? 'True' : q.option_a,
+      option_b: q.question_type === 'true_false' ? 'False' : q.option_b,
+      option_c: q.question_type === 'four_choice' ? q.option_c : '',
+      option_d: q.question_type === 'four_choice' ? q.option_d : '',
       correct_answer: q.correct_answer,
       image_url: q.image_url || null,
       passage_id: q.passage_id || null,
@@ -546,6 +581,7 @@ const Admin = () => {
         correct_answer: 'A',
         image_url: '',
         passage_id: '',
+        question_type: 'four_choice',
       }]);
       await loadQuestions(selectedExam.id);
     }
@@ -649,6 +685,7 @@ const Admin = () => {
       correct_answer: 'A',
       image_url: '',
       passage_id: '',
+      question_type: 'four_choice',
     }]);
   };
 
@@ -661,6 +698,86 @@ const Admin = () => {
     const updated = [...questionForms];
     updated[index] = { ...updated[index], [field]: value };
     setQuestionForms(updated);
+  };
+
+  const handleAiGenerateExam = async () => {
+    if (!selectedExam) return;
+    if (!aiForm.topic.trim()) {
+      toast.error("Please enter a topic");
+      return;
+    }
+
+    setGeneratingExam(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-exam`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          topic: aiForm.topic,
+          subject: aiForm.subject,
+          grade: aiForm.grade,
+          questionCount: aiForm.questionCount,
+          questionTypes: aiForm.questionTypes,
+          includePassage: aiForm.includePassage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        // If passage was generated, add it first
+        if (result.passage) {
+          const { data: passageData, error: passageError } = await supabase.from('passages').insert({
+            exam_id: selectedExam.id,
+            title: result.passage.title,
+            content: result.passage.content,
+            order_index: passages.length,
+          }).select().single();
+
+          if (!passageError && passageData) {
+            await loadPassages(selectedExam.id);
+            // Assign passage to questions
+            result.questions = result.questions.map((q: any) => ({
+              ...q,
+              passage_id: passageData.id,
+            }));
+          }
+        }
+
+        // Set questions to form
+        if (result.questions && result.questions.length > 0) {
+          setQuestionForms(result.questions.map((q: any) => ({
+            question_text: q.question_text || '',
+            option_a: q.option_a || '',
+            option_b: q.option_b || '',
+            option_c: q.option_c || '',
+            option_d: q.option_d || '',
+            correct_answer: q.correct_answer || 'A',
+            image_url: '',
+            passage_id: q.passage_id || '',
+            question_type: q.question_type || 'four_choice',
+          })));
+          toast.success(`Generated ${result.questions.length} questions with AI!`);
+          setShowAiDialog(false);
+          setShowQuestionDialog(true);
+        } else {
+          toast.error("No questions were generated");
+        }
+      }
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      toast.error("Failed to generate exam with AI");
+    } finally {
+      setGeneratingExam(false);
+    }
   };
 
   const handleDeleteExam = async (examId: string) => {
@@ -834,7 +951,7 @@ const Admin = () => {
                     setShowExamDialog(open);
                     if (!open) {
                       setEditingExam(null);
-                      setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general' });
+                      setExamForm({ title: '', description: '', duration_minutes: 60, passing_score: 70, grade: 'general', subject: 'general' });
                     }
                   }}>
                     <DialogTrigger asChild>
@@ -884,18 +1001,33 @@ const Admin = () => {
                             />
                           </div>
                         </div>
-                        <div>
-                          <Label>Grade</Label>
-                          <Select value={examForm.grade} onValueChange={(v) => setExamForm({...examForm, grade: v})}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select grade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {GRADE_OPTIONS.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Grade</Label>
+                            <Select value={examForm.grade} onValueChange={(v) => setExamForm({...examForm, grade: v})}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select grade" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {GRADE_OPTIONS.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Subject</Label>
+                            <Select value={examForm.subject} onValueChange={(v) => setExamForm({...examForm, subject: v})}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select subject" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SUBJECT_OPTIONS.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <Button onClick={handleCreateExam} className="w-full btn-glow bg-primary">
                           <Save className="w-4 h-4 mr-2" />
@@ -1020,6 +1152,80 @@ const Admin = () => {
                             </div>
                           </DialogContent>
                         </Dialog>
+                        <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30">
+                              <Sparkles className="w-4 h-4 mr-2 text-purple-400" />
+                              AI
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="glass-card border-primary/30 max-w-md mx-2">
+                            <DialogHeader>
+                              <DialogTitle className="font-display flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-purple-400" />
+                                AI Exam Generator
+                              </DialogTitle>
+                              <DialogDescription>Generate questions with AI</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Topic</Label>
+                                <Input value={aiForm.topic} onChange={(e) => setAiForm({...aiForm, topic: e.target.value})} placeholder="e.g., Photosynthesis, Quadratic Equations" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label>Subject</Label>
+                                  <Select value={aiForm.subject} onValueChange={(v) => setAiForm({...aiForm, subject: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {SUBJECT_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label>Grade</Label>
+                                  <Select value={aiForm.grade} onValueChange={(v) => setAiForm({...aiForm, grade: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {GRADE_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div>
+                                <Label>Number of Questions</Label>
+                                <Input type="number" min={1} max={30} value={aiForm.questionCount} onChange={(e) => setAiForm({...aiForm, questionCount: parseInt(e.target.value) || 10})} />
+                              </div>
+                              <div>
+                                <Label className="mb-2 block">Question Types</Label>
+                                <div className="space-y-2">
+                                  {QUESTION_TYPE_OPTIONS.map(opt => (
+                                    <div key={opt.value} className="flex items-center gap-2">
+                                      <Checkbox 
+                                        checked={aiForm.questionTypes.includes(opt.value)}
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
+                                            setAiForm({...aiForm, questionTypes: [...aiForm.questionTypes, opt.value]});
+                                          } else {
+                                            setAiForm({...aiForm, questionTypes: aiForm.questionTypes.filter(t => t !== opt.value)});
+                                          }
+                                        }}
+                                      />
+                                      <span className="text-sm">{opt.label}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox checked={aiForm.includePassage} onCheckedChange={(c) => setAiForm({...aiForm, includePassage: !!c})} />
+                                <span className="text-sm">Include reading passage</span>
+                              </div>
+                              <Button onClick={handleAiGenerateExam} disabled={generatingExam} className="w-full btn-glow bg-gradient-to-r from-purple-500 to-pink-500">
+                                {generatingExam ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</> : <><Sparkles className="w-4 h-4 mr-2" />Generate Exam</>}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
                           <DialogTrigger asChild>
                             <Button className="btn-glow bg-secondary hover:bg-secondary/90" size="sm">
@@ -1063,39 +1269,47 @@ const Admin = () => {
                                       </div>
                                     )}
                                     <div>
+                                      <Label className="text-xs">Question Type</Label>
+                                      <Select value={form.question_type} onValueChange={(v) => {
+                                        updateQuestionForm(index, 'question_type', v);
+                                        if (v === 'true_false') {
+                                          updateQuestionForm(index, 'option_a', 'True');
+                                          updateQuestionForm(index, 'option_b', 'False');
+                                        }
+                                      }}>
+                                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          {QUESTION_TYPE_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div>
                                       <Label className="text-xs">Question</Label>
                                       <Textarea value={form.question_text} onChange={(e) => updateQuestionForm(index, 'question_text', e.target.value)} className="min-h-[60px]" placeholder="Enter question text" />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div>
-                                        <Label className="text-xs">A</Label>
-                                        <Input value={form.option_a} onChange={(e) => updateQuestionForm(index, 'option_a', e.target.value)} placeholder="Option A" />
+                                    {form.question_type === 'true_false' ? (
+                                      <div className="text-sm text-muted-foreground p-2 bg-muted/50 rounded">Options: True / False</div>
+                                    ) : (
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div><Label className="text-xs">A</Label><Input value={form.option_a} onChange={(e) => updateQuestionForm(index, 'option_a', e.target.value)} placeholder="Option A" /></div>
+                                        <div><Label className="text-xs">B</Label><Input value={form.option_b} onChange={(e) => updateQuestionForm(index, 'option_b', e.target.value)} placeholder="Option B" /></div>
+                                        {form.question_type === 'four_choice' && (
+                                          <>
+                                            <div><Label className="text-xs">C</Label><Input value={form.option_c} onChange={(e) => updateQuestionForm(index, 'option_c', e.target.value)} placeholder="Option C" /></div>
+                                            <div><Label className="text-xs">D</Label><Input value={form.option_d} onChange={(e) => updateQuestionForm(index, 'option_d', e.target.value)} placeholder="Option D" /></div>
+                                          </>
+                                        )}
                                       </div>
-                                      <div>
-                                        <Label className="text-xs">B</Label>
-                                        <Input value={form.option_b} onChange={(e) => updateQuestionForm(index, 'option_b', e.target.value)} placeholder="Option B" />
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs">C</Label>
-                                        <Input value={form.option_c} onChange={(e) => updateQuestionForm(index, 'option_c', e.target.value)} placeholder="Option C" />
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs">D</Label>
-                                        <Input value={form.option_d} onChange={(e) => updateQuestionForm(index, 'option_d', e.target.value)} placeholder="Option D" />
-                                      </div>
-                                    </div>
+                                    )}
                                     <div className="flex gap-3">
                                       <div className="flex-1">
                                         <Label className="text-xs">Correct</Label>
                                         <Select value={form.correct_answer} onValueChange={(v) => updateQuestionForm(index, 'correct_answer', v)}>
-                                          <SelectTrigger className="h-8">
-                                            <SelectValue />
-                                          </SelectTrigger>
+                                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                           <SelectContent>
                                             <SelectItem value="A">A</SelectItem>
                                             <SelectItem value="B">B</SelectItem>
-                                            <SelectItem value="C">C</SelectItem>
-                                            <SelectItem value="D">D</SelectItem>
+                                            {form.question_type === 'four_choice' && <><SelectItem value="C">C</SelectItem><SelectItem value="D">D</SelectItem></>}
                                           </SelectContent>
                                         </Select>
                                       </div>
