@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.pdf-to-exam]
 verify_jwt = false
+
+[functions.reset-admin-password]
+verify_jwt = false
