@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase, signOut, checkIsAdmin } from "@/lib/supabase";
-import { Brain, Clock, Target, TrendingUp, LogOut, Shield, BookOpen, MessageSquare } from "lucide-react";
+import { Brain, Clock, Target, TrendingUp, LogOut, Shield, BookOpen, MessageSquare, Gamepad2, GraduationCap } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Exam = Database['public']['Tables']['exams']['Row'];
@@ -125,13 +125,22 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center gap-1.5 sm:gap-3">
               <Button
-                onClick={() => navigate('/contact')}
+                onClick={() => navigate('/materials')}
                 variant="ghost"
                 size="sm"
                 className="hover:bg-primary/10 h-8 sm:h-9 px-2 sm:px-3"
               >
-                <MessageSquare className="w-4 h-4" />
-                <span className="hidden sm:inline ml-2">Contact</span>
+                <GraduationCap className="w-4 h-4" />
+                <span className="hidden sm:inline ml-2">Materials</span>
+              </Button>
+              <Button
+                onClick={() => navigate('/games')}
+                variant="ghost"
+                size="sm"
+                className="hover:bg-secondary/10 h-8 sm:h-9 px-2 sm:px-3"
+              >
+                <Gamepad2 className="w-4 h-4" />
+                <span className="hidden sm:inline ml-2">Games</span>
               </Button>
               {isAdmin && (
                 <Button
