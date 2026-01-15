@@ -350,9 +350,6 @@ const Admin = () => {
       return;
     }
 
-    // Generate random ID and use same as password
-    const randomId = generateRandomId();
-
     setCreatingUser(true);
     setCreatedUserId(null);
     setCreatedPassword(null);
@@ -368,7 +365,6 @@ const Admin = () => {
         },
         body: JSON.stringify({
           ...userForm,
-          password: randomId, // Password same as ID
         }),
       });
 

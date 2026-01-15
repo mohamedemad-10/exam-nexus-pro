@@ -60,10 +60,10 @@ serve(async (req) => {
       });
     }
 
-    const { password, full_name, phone, class: userClass } = await req.json();
+    const { full_name, phone, class: userClass } = await req.json();
 
-    if (!password || !full_name) {
-      return new Response(JSON.stringify({ error: "Password and full name are required" }), {
+    if (!full_name) {
+      return new Response(JSON.stringify({ error: "Full name is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -84,8 +84,11 @@ serve(async (req) => {
       attempts++;
     }
 
-    // Create a fake email using the user_id for Supabase Auth
+    // Create a fake email using the user_id for Auth
     const fakeEmail = `${userId.toLowerCase()}@exampro.local`;
+
+    // IMPORTANT: Password MUST match the login ID, because the frontend signs in with password=user_id
+    const password = userId;
 
     // Create user with generated email
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
