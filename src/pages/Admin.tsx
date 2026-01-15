@@ -9,11 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { supabase, checkIsAdmin } from "@/lib/supabase";
+import { supabase, checkIsAdmin, checkHasAdminAccess, getUserRole } from "@/lib/supabase";
 import { 
   Brain, ArrowLeft, Plus, Trash2, Edit, Save, BookOpen, 
   Users, BarChart3, Clock, Shield, TrendingUp, Award, RotateCcw, Eye, 
-  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star, Download, Sparkles
+  CheckCircle, XCircle, UserPlus, Mail, FileText, Upload, Image, Loader2, MessageSquare, Reply, Star, Download, Sparkles, KeyRound, GraduationCap
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { UserDetailsDialog } from "@/components/UserDetailsDialog";
@@ -116,8 +116,20 @@ const Admin = () => {
   const [creatingUser, setCreatingUser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [adminUserIds, setAdminUserIds] = useState<string[]>([]);
+  const [teacherUserIds, setTeacherUserIds] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [showUserDetailsDialog, setShowUserDetailsDialog] = useState(false);
+  const [userRole, setUserRole] = useState<'admin' | 'teacher' | 'user' | null>(null);
+  const [showTeacherDialog, setShowTeacherDialog] = useState(false);
+  const [creatingTeacher, setCreatingTeacher] = useState(false);
+  const [showExamPreviewDialog, setShowExamPreviewDialog] = useState(false);
+  const [resettingPasswordFor, setResettingPasswordFor] = useState<string | null>(null);
+
+  const [teacherForm, setTeacherForm] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+  });
 
   const [passageForm, setPassageForm] = useState({
     title: '',
@@ -182,12 +194,15 @@ const Admin = () => {
         return;
       }
 
-      const isAdmin = await checkIsAdmin(session.user.id);
-      if (!isAdmin) {
-        toast.error("Access denied. Admin privileges required.");
+      const hasAccess = await checkHasAdminAccess(session.user.id);
+      if (!hasAccess) {
+        toast.error("Access denied. Admin/Teacher privileges required.");
         navigate('/dashboard');
         return;
       }
+
+      const role = await getUserRole(session.user.id);
+      setUserRole(role);
 
       setUser(session.user);
       await Promise.all([
@@ -207,10 +222,10 @@ const Admin = () => {
   const loadAdminUsers = async () => {
     const { data } = await supabase
       .from('user_roles')
-      .select('user_id')
-      .eq('role', 'admin');
+      .select('user_id, role');
     if (data) {
-      setAdminUserIds(data.map(r => r.user_id));
+      setAdminUserIds(data.filter(r => r.role === 'admin').map(r => r.user_id));
+      setTeacherUserIds(data.filter(r => r.role === 'teacher').map(r => r.user_id));
     }
   };
 
@@ -414,6 +429,73 @@ const Admin = () => {
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to delete user");
+    }
+  };
+
+  const handleResetPassword = async (userId: string, userIdCode: string) => {
+    setResettingPasswordFor(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/reset-admin-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ userId, newPassword: userIdCode }),
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Password reset to: ${userIdCode}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setResettingPasswordFor(null);
+    }
+  };
+
+  const handleCreateTeacher = async () => {
+    if (!teacherForm.email || !teacherForm.password || !teacherForm.full_name) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    if (teacherForm.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setCreatingTeacher(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const SUPABASE_URL = "https://lhdwmdebrqezcyjnrbnb.supabase.co";
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/create-teacher`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify(teacherForm),
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Teacher account created!");
+        setShowTeacherDialog(false);
+        setTeacherForm({ email: '', password: '', full_name: '' });
+        await Promise.all([loadUsers(), loadAdminUsers()]);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create teacher");
+    } finally {
+      setCreatingTeacher(false);
     }
   };
 
@@ -1386,22 +1468,82 @@ const Admin = () => {
 
           {/* Users Tab */}
           <TabsContent value="users">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
               <h2 className="text-xl font-display">User Management</h2>
-              <Dialog open={showUserDialog} onOpenChange={(open) => {
-                setShowUserDialog(open);
-                if (!open) {
-                  setCreatedUserId(null);
-                  setCreatedPassword(null);
-                  setUserForm({ full_name: '', phone: '', class: '' });
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="btn-glow bg-primary hover:bg-primary/90" size="sm">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add User
-                  </Button>
-                </DialogTrigger>
+              <div className="flex gap-2">
+                {/* Create Teacher Button - Admin Only */}
+                {userRole === 'admin' && (
+                  <Dialog open={showTeacherDialog} onOpenChange={(open) => {
+                    setShowTeacherDialog(open);
+                    if (!open) setTeacherForm({ email: '', password: '', full_name: '' });
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="border-secondary/50 text-secondary">
+                        <GraduationCap className="w-4 h-4 mr-2" />
+                        Add Teacher
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="glass-card border-secondary/30 max-w-md mx-2">
+                      <DialogHeader>
+                        <DialogTitle className="font-display text-xl flex items-center gap-2">
+                          <GraduationCap className="w-5 h-5 text-secondary" />
+                          Create Teacher Account
+                        </DialogTitle>
+                        <DialogDescription>
+                          Teachers can create exams and manage students but cannot delete users or other admins.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Full Name *</Label>
+                          <Input
+                            value={teacherForm.full_name}
+                            onChange={(e) => setTeacherForm({...teacherForm, full_name: e.target.value})}
+                            placeholder="Teacher Name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Email *</Label>
+                          <Input
+                            type="email"
+                            value={teacherForm.email}
+                            onChange={(e) => setTeacherForm({...teacherForm, email: e.target.value})}
+                            placeholder="teacher@example.com"
+                          />
+                        </div>
+                        <div>
+                          <Label>Password *</Label>
+                          <Input
+                            type="password"
+                            value={teacherForm.password}
+                            onChange={(e) => setTeacherForm({...teacherForm, password: e.target.value})}
+                            placeholder="Min 6 characters"
+                          />
+                        </div>
+                        <Button onClick={handleCreateTeacher} className="w-full btn-glow bg-secondary" disabled={creatingTeacher}>
+                          {creatingTeacher ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                          Create Teacher
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                {/* Add Student Button */}
+                <Dialog open={showUserDialog} onOpenChange={(open) => {
+                  setShowUserDialog(open);
+                  if (!open) {
+                    setCreatedUserId(null);
+                    setCreatedPassword(null);
+                    setUserForm({ full_name: '', phone: '', class: '' });
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button className="btn-glow bg-primary hover:bg-primary/90" size="sm">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Add Student
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="glass-card border-primary/30 max-w-md mx-2">
                   <DialogHeader>
                     <DialogTitle className="font-display text-xl">
@@ -1483,6 +1625,7 @@ const Admin = () => {
                   )}
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
 
             <Card className="glass-card">
@@ -1499,17 +1642,19 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                                      {users.map((u: any) => {
-                                        const isAdmin = adminUserIds.includes(u.id);
-                                        return (
-                                          <tr key={u.id} className="hover:bg-primary/5 cursor-pointer" onClick={() => { setSelectedUser(u); setShowUserDetailsDialog(true); }}>
-                                            <td className="p-3">
-                                              <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
-                                              {isAdmin && <span className="ml-2 text-xs bg-secondary/20 text-secondary px-1.5 py-0.5 rounded">Admin</span>}
-                                            </td>
-                                            <td className="p-3">
+                      {users.map((u: any) => {
+                        const isAdmin = adminUserIds.includes(u.id);
+                        const isTeacher = teacherUserIds.includes(u.id);
+                        const canDelete = userRole === 'admin' && !isAdmin;
+                        return (
+                          <tr key={u.id} className="hover:bg-primary/5 cursor-pointer" onClick={() => { setSelectedUser(u); setShowUserDetailsDialog(true); }}>
+                            <td className="p-3">
+                              <span className="font-mono text-sm font-bold text-primary">{u.user_id || 'N/A'}</span>
+                              {isAdmin && <span className="ml-2 text-xs bg-secondary/20 text-secondary px-1.5 py-0.5 rounded">Admin</span>}
+                              {isTeacher && <span className="ml-2 text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Teacher</span>}
+                            </td>
+                            <td className="p-3">
                               <p className="font-medium text-sm">{u.full_name || 'N/A'}</p>
-                              <p className="text-xs text-muted-foreground md:hidden">{u.class || ''}</p>
                             </td>
                             <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
                               <span className="px-2 py-1 rounded-full bg-secondary/20 text-secondary text-xs">
@@ -1517,17 +1662,33 @@ const Admin = () => {
                               </span>
                             </td>
                             <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{u.phone || '-'}</td>
-                            <td className="p-3 text-right">
-                              {!isAdmin && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteUser(u.id, u.full_name || u.user_id)}
-                                  className="text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              )}
+                            <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-1">
+                                {/* Reset Password Button */}
+                                {u.user_id && !isAdmin && !isTeacher && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleResetPassword(u.id, u.user_id)}
+                                    disabled={resettingPasswordFor === u.id}
+                                    className="text-primary hover:bg-primary/10"
+                                    title="Reset password to User ID"
+                                  >
+                                    {resettingPasswordFor === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                                  </Button>
+                                )}
+                                {/* Delete Button - Admin only, can't delete admins */}
+                                {canDelete && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteUser(u.id, u.full_name || u.user_id)}
+                                    className="text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
