@@ -54,3 +54,31 @@ export const checkIsAdmin = async (userId: string): Promise<boolean> => {
   
   return data === true;
 };
+
+// Check if user has admin or teacher access
+export const checkHasAdminAccess = async (userId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .rpc('has_admin_access', { _user_id: userId });
+  
+  if (error) {
+    console.error('Error checking admin access:', error);
+    return false;
+  }
+  
+  return data === true;
+};
+
+// Get user role
+export const getUserRole = async (userId: string): Promise<'admin' | 'teacher' | 'user' | null> => {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  
+  if (error || !data) {
+    return null;
+  }
+  
+  return data.role as 'admin' | 'teacher' | 'user';
+};
