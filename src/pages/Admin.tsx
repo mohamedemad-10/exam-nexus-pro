@@ -18,6 +18,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { UserDetailsDialog } from "@/components/UserDetailsDialog";
 import { exportResultsToCSV, formatTimeForExport, formatDateForExport } from "@/lib/exportResults";
+import { BulkStudentImport } from "@/components/admin/BulkStudentImport";
+import { ExamPreview } from "@/components/admin/ExamPreview";
 import {
   Dialog,
   DialogContent,
@@ -124,6 +126,7 @@ const Admin = () => {
   const [creatingTeacher, setCreatingTeacher] = useState(false);
   const [showExamPreviewDialog, setShowExamPreviewDialog] = useState(false);
   const [resettingPasswordFor, setResettingPasswordFor] = useState<string | null>(null);
+  const [previewExam, setPreviewExam] = useState<Exam | null>(null);
 
   const [teacherForm, setTeacherForm] = useState({
     email: '',
@@ -1136,17 +1139,25 @@ const Admin = () => {
                             <CardDescription className="text-xs line-clamp-1">{exam.description}</CardDescription>
                           </div>
                           <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" onClick={() => setPreviewExam(exam)} className="text-primary">
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleEditExam(exam)}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setDeleteExamId(exam.id)} className="text-destructive">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {userRole === 'admin' && (
+                              <Button variant="ghost" size="sm" onClick={() => setDeleteExamId(exam.id)} className="text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                           <span><Clock className="w-3 h-3 inline mr-1" />{exam.duration_minutes}m</span>
                           <span>Pass: {exam.passing_score}%</span>
+                          <span className={`px-1.5 py-0.5 rounded ${exam.is_active ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                            {exam.is_active ? 'Published' : 'Draft'}
+                          </span>
                           <span className="px-1.5 py-0.5 bg-secondary/20 text-secondary rounded">
                             {GRADE_OPTIONS.find(g => g.value === (exam as any).grade)?.label || 'General'}
                           </span>
@@ -1466,11 +1477,31 @@ const Admin = () => {
             </div>
           </TabsContent>
 
+          {/* Exam Preview Dialog */}
+          {previewExam && (
+            <ExamPreview
+              exam={previewExam}
+              open={!!previewExam}
+              onOpenChange={(open) => !open && setPreviewExam(null)}
+              onUpdate={() => {
+                loadExams();
+                if (selectedExam?.id === previewExam.id) {
+                  loadQuestions(selectedExam.id);
+                }
+              }}
+            />
+          )}
+
           {/* Users Tab */}
           <TabsContent value="users">
             <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
               <h2 className="text-xl font-display">User Management</h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {/* Bulk CSV Import */}
+                <BulkStudentImport 
+                  onComplete={loadUsers} 
+                  gradeOptions={GRADE_OPTIONS}
+                />
                 {/* Create Teacher Button - Admin Only */}
                 {userRole === 'admin' && (
                   <Dialog open={showTeacherDialog} onOpenChange={(open) => {
@@ -1645,6 +1676,7 @@ const Admin = () => {
                       {users.map((u: any) => {
                         const isAdmin = adminUserIds.includes(u.id);
                         const isTeacher = teacherUserIds.includes(u.id);
+                        const canResetPassword = (userRole === 'admin' || userRole === 'teacher') && !isAdmin && !isTeacher;
                         const canDelete = userRole === 'admin' && !isAdmin;
                         return (
                           <tr key={u.id} className="hover:bg-primary/5 cursor-pointer" onClick={() => { setSelectedUser(u); setShowUserDetailsDialog(true); }}>
@@ -1664,8 +1696,8 @@ const Admin = () => {
                             <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{u.phone || '-'}</td>
                             <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
-                                {/* Reset Password Button */}
-                                {u.user_id && !isAdmin && !isTeacher && (
+                                {/* Reset Password Button - Teachers and Admins can reset student passwords */}
+                                {u.user_id && canResetPassword && (
                                   <Button
                                     size="sm"
                                     variant="ghost"
