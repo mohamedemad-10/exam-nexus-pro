@@ -18,7 +18,6 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Verify the requesting user is an admin
     const authHeader = req.headers.get("Authorization")?.split(" ")[1];
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -39,11 +38,11 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUser.id)
-      .eq("role", "admin")
+      .in("role", ["admin", "teacher"])
       .maybeSingle();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
+      return new Response(JSON.stringify({ error: "Admin or Teacher access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -58,7 +57,19 @@ serve(async (req) => {
       });
     }
 
-    // Update password
+    const { data: targetRoleData } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (roleData.role === "teacher" && targetRoleData && (targetRoleData.role === "admin" || targetRoleData.role === "teacher")) {
+      return new Response(JSON.stringify({ error: "Teachers cannot reset admin or teacher passwords" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password: newPassword,
     });
